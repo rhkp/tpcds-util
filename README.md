@@ -212,7 +212,7 @@ parallel_workers: 4
 
 ### macOS Build Issues
 
-If building on macOS, see the [macOS compatibility notes](../README.md#macos-compatibility-notes) in the main repository.
+If building on macOS, see the [macOS compatibility notes](https://github.com/rhkp/TPC-DS_Oracle#macos-compatibility-notes) in the TPC-DS_Oracle repository.
 
 ## Examples
 
