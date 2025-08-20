@@ -163,7 +163,13 @@ tpcds-util load data --table customer
 
 # Load with parallel processing
 tpcds-util load data --parallel 8
+
+# If loading gets interrupted, clear data first and reload
+tpcds-util load truncate --confirm
+tpcds-util load data
 ```
+
+**Note:** If the data loading process gets interrupted for any reason (network issues, timeouts, etc.), it's recommended to truncate all data first before reloading to avoid constraint violations from partial data.
 
 ### Utility Commands
 
