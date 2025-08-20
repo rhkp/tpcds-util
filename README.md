@@ -2,6 +2,10 @@
 
 A simple, user-friendly command-line utility for managing TPC-DS benchmarks on Oracle databases.
 
+## Important Notice
+
+**This utility is a wrapper around the [TPC-DS Kit](https://www.tpc.org/tpc_documents_current_versions/current_specifications5.asp).** You must obtain and install the TPC-DS Kit separately. The TPC-DS Kit has its own license terms that you are responsible for reviewing and complying with. This utility does not include or redistribute any TPC-DS Kit components.
+
 ## Features
 
 - **Easy Configuration**: Simple setup with interactive configuration
@@ -16,8 +20,9 @@ A simple, user-friendly command-line utility for managing TPC-DS benchmarks on O
 ### Prerequisites
 
 - Python 3.8+
-- Oracle Client Libraries (for cx_Oracle)
-- TPC-DS Kit (for data generation)
+- Oracle Client Libraries (see [Oracle Instant Client](https://www.oracle.com/database/technologies/instant-client.html))
+- TPC-DS Kit (you must download and build this separately - see setup section below)
+- Oracle database with appropriate privileges for schema creation
 
 ### Install from Source
 
@@ -197,22 +202,33 @@ parallel_workers: 4
 
 ## TPC-DS Kit Setup
 
+**Required:** You must set up the TPC-DS Kit before using this utility.
+
 1. Download the TPC-DS Kit from [TPC website](https://www.tpc.org/tpc_documents_current_versions/current_specifications5.asp) or use the [community version](https://github.com/gregrahn/tpcds-kit)
 
-2. Build the tools:
+2. Review the TPC-DS Kit license terms (EULA.txt) to ensure compliance with your use case
+
+3. Build the tools:
    ```bash
    cd tpcds-kit/tools
    make
    ```
 
-3. Set the path in configuration:
+4. Set the path in configuration:
    ```bash
    tpcds-util config set --tpcds-kit-path /path/to/tpcds-kit
    ```
 
-### macOS Build Issues
+5. Verify the setup:
+   ```bash
+   tpcds-util config show
+   ```
 
-If building on macOS, see the [macOS compatibility notes](https://github.com/rhkp/TPC-DS_Oracle#macos-compatibility-notes) in the TPC-DS_Oracle repository.
+### Platform Notes
+
+- **macOS**: May require build modifications - see [macOS compatibility notes](https://github.com/rhkp/TPC-DS_Oracle#macos-compatibility-notes)
+- **Linux**: Generally builds without issues
+- **Windows**: Use WSL or mingw for building TPC-DS Kit
 
 ## Examples
 
