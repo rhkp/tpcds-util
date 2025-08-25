@@ -50,6 +50,23 @@ class DataLoader:
     def __init__(self):
         self.config = config_manager.load()
     
+    def _get_schema_name(self, schema_override: Optional[str] = None) -> str:
+        """Get effective schema name (override > config > current user)."""
+        if schema_override:
+            return schema_override.upper()
+        elif self.config.schema_name:
+            return self.config.schema_name.upper()
+        else:
+            # Use current user's schema (default behavior)
+            return ""
+    
+    def _qualify_table_name(self, table_name: str, schema_name: str = "") -> str:
+        """Qualify table name with schema if provided."""
+        if schema_name:
+            return f"{schema_name}.{table_name.upper()}"
+        else:
+            return table_name.upper()
+    
     def _find_data_files(self, data_dir: str) -> Dict[str, Path]:
         """Find available data files in the directory."""
         data_path = Path(data_dir)
@@ -66,14 +83,16 @@ class DataLoader:
         
         return found_files
     
-    def _generate_control_file(self, table: str, data_file: Path, control_dir: Path) -> Path:
+    def _generate_control_file(self, table: str, data_file: Path, control_dir: Path, schema_override: Optional[str] = None) -> Path:
         """Generate Oracle SQL*Loader control file for a table."""
         control_file = control_dir / f"{table}.ctl"
+        schema_name = self._get_schema_name(schema_override)
+        qualified_table = self._qualify_table_name(table, schema_name)
         
         # Basic control file template - would need to be customized per table
         control_content = f"""LOAD DATA
 INFILE '{data_file.absolute()}'
-APPEND INTO TABLE {table.upper()}
+APPEND INTO TABLE {qualified_table}
 FIELDS TERMINATED BY '|'
 TRAILING NULLCOLS
 (
@@ -124,14 +143,20 @@ TRAILING NULLCOLS
             click.echo(f"Error loading {table}: {e}", err=True)
             return False
     
-    def _load_table_direct(self, table: str, data_file: Path) -> bool:
+    def _load_table_direct(self, table: str, data_file: Path, schema_override: Optional[str] = None) -> bool:
         """Load table using direct Oracle connection (for smaller tables)."""
+        schema_name = self._get_schema_name(schema_override)
+        qualified_table = self._qualify_table_name(table, schema_name)
+        
         try:
             with db_manager.get_connection() as conn:
                 with conn.cursor() as cursor:
                     # First, get the table structure with data types
                     try:
-                        cursor.execute(f"SELECT column_name, data_type FROM user_tab_columns WHERE table_name = '{table.upper()}' ORDER BY column_id")
+                        if schema_name:
+                            cursor.execute(f"SELECT column_name, data_type FROM all_tab_columns WHERE owner = '{schema_name}' AND table_name = '{table.upper()}' ORDER BY column_id")
+                        else:
+                            cursor.execute(f"SELECT column_name, data_type FROM user_tab_columns WHERE table_name = '{table.upper()}' ORDER BY column_id")
                         table_structure = cursor.fetchall()
                         columns = [row[0] for row in table_structure]
                         column_types = {row[0]: row[1] for row in table_structure}
@@ -157,7 +182,7 @@ TRAILING NULLCOLS
                         else:
                             placeholder_template.append(':v' + str(i+1))
                     
-                    insert_sql = f"INSERT INTO {table.upper()} ({','.join(columns)}) VALUES ({','.join(placeholder_template)})"
+                    insert_sql = f"INSERT INTO {qualified_table} ({','.join(columns)}) VALUES ({','.join(placeholder_template)})"
                     
                     with open(data_file, 'r', encoding='utf-8') as f:
                         for line_num, line in enumerate(f, 1):
@@ -250,7 +275,7 @@ TRAILING NULLCOLS
                     
                     # Final commit
                     conn.commit()
-                    console.print(f"Inserted {rows_inserted} rows into {table.upper()}", style="green")
+                    console.print(f"Inserted {rows_inserted} rows into {qualified_table}", style="green")
                     return rows_inserted > 0
                     
         except Exception as e:
@@ -259,7 +284,8 @@ TRAILING NULLCOLS
     
     def load_data(self, data_dir: Optional[str] = None,
                   parallel: Optional[int] = None,
-                  table: Optional[str] = None) -> bool:
+                  table: Optional[str] = None,
+                  schema_override: Optional[str] = None) -> bool:
         """Load TPC-DS data into database."""
         
         data_dir = data_dir or self.config.default_output_dir
@@ -313,7 +339,7 @@ TRAILING NULLCOLS
                     for table_name, data_file in data_files.items():
                         # For demo purposes, using direct loading
                         # In production, would use SQL*Loader with proper control files
-                        future = executor.submit(self._load_table_direct, table_name, data_file)
+                        future = executor.submit(self._load_table_direct, table_name, data_file, schema_override)
                         futures[future] = table_name
                     
                     for future in concurrent.futures.as_completed(futures):
@@ -338,7 +364,7 @@ TRAILING NULLCOLS
                     console.print(f"Loading {table_name}...")
                     
                     # For demo purposes, using direct loading
-                    success = self._load_table_direct(table_name, data_file)
+                    success = self._load_table_direct(table_name, data_file, schema_override)
                     
                     if success:
                         success_count += 1
@@ -356,10 +382,13 @@ TRAILING NULLCOLS
             console.print(f"⚠️  {success_count}/{len(data_files)} tables loaded successfully", style="yellow")
             return False
     
-    def truncate_tables(self, confirm: bool = False) -> bool:
+    def truncate_tables(self, confirm: bool = False, schema_override: Optional[str] = None) -> bool:
         """Truncate all TPC-DS tables."""
+        schema_name = self._get_schema_name(schema_override)
+        
         if not confirm:
-            if not click.confirm("This will delete all data from TPC-DS tables. Continue?"):
+            schema_msg = f" in schema {schema_name}" if schema_name else ""
+            if not click.confirm(f"This will delete all data from TPC-DS tables{schema_msg}. Continue?"):
                 click.echo("Operation cancelled.")
                 return False
         
@@ -377,7 +406,8 @@ TRAILING NULLCOLS
                         
                         for table in tables:
                             try:
-                                cursor.execute(f"TRUNCATE TABLE {table.upper()}")
+                                qualified_table = self._qualify_table_name(table, schema_name)
+                                cursor.execute(f"TRUNCATE TABLE {qualified_table}")
                                 progress.advance(task)
                             except oracledb.Error as e:
                                 if "ORA-00942" not in str(e):  # Table doesn't exist

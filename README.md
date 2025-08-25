@@ -9,6 +9,7 @@ This utility generates realistic synthetic data that complies with the TPC-DS sp
 ## Features
 
 - **Synthetic Data Generation**: Generate TPC-DS compliant data with realistic business patterns
+- **Multi-Schema Support**: Target specific schemas for all database operations
 - **Easy Configuration**: Simple setup with interactive configuration
 - **Database Management**: Create/drop schemas, test connections
 - **Data Loading**: Load data into Oracle with parallel processing
@@ -46,6 +47,7 @@ tpcds-util config init
 
 This will prompt you for:
 - Database connection details
+- Target schema name (optional)
 - Default scale factor
 - Output directory
 - Parallel workers
@@ -94,6 +96,7 @@ Update specific settings:
 ```bash
 tpcds-util config set --host mydb.example.com --port 1521
 tpcds-util config set --username myuser --default-scale 2
+tpcds-util config set --schema-name PRODUCTION_SCHEMA
 ```
 
 ### Data Generation
@@ -134,9 +137,19 @@ Load with custom parallelism:
 tpcds-util load data --data-dir ./tpcds_data --parallel 8
 ```
 
+Load into specific schema:
+```bash
+tpcds-util load data --data-dir ./tpcds_data --schema PRODUCTION_SCHEMA
+```
+
 Truncate all data:
 ```bash
 tpcds-util load truncate --confirm
+```
+
+Truncate data in specific schema:
+```bash
+tpcds-util load truncate --schema PRODUCTION_SCHEMA --confirm
 ```
 
 ### Schema Management
@@ -146,9 +159,19 @@ Create schema:
 tpcds-util schema create
 ```
 
+Create schema in specific target:
+```bash
+tpcds-util schema create --schema PRODUCTION_SCHEMA
+```
+
 Drop schema (with confirmation):
 ```bash
 tpcds-util schema drop
+```
+
+Drop schema from specific target:
+```bash
+tpcds-util schema drop --schema PRODUCTION_SCHEMA --confirm
 ```
 
 ### Database Operations
@@ -161,6 +184,11 @@ tpcds-util db test
 Show table information:
 ```bash
 tpcds-util db info
+```
+
+Show table information for specific schema:
+```bash
+tpcds-util db info --schema PRODUCTION_SCHEMA
 ```
 
 Overall status:
@@ -181,6 +209,7 @@ database:
   password: ""
   use_sid: false
 
+schema_name: ""  # Optional target schema name
 default_scale: 1
 default_output_dir: ./tpcds_data
 parallel_workers: 4
@@ -231,6 +260,50 @@ The synthetic data includes:
 - **Customer Segments**: Varied demographics, education levels, and income bands
 - **Business Relationships**: Proper foreign key relationships across all tables
 - **Realistic Volumes**: Configurable scale factors for different dataset sizes
+
+## Multi-Schema Support
+
+The utility supports working with multiple schemas in the same database:
+
+### Configuration-Based Schema
+Set a default schema in configuration:
+```bash
+tpcds-util config set --schema-name DEV_SCHEMA
+# All operations will use DEV_SCHEMA by default
+tpcds-util schema create
+tpcds-util load data
+```
+
+### Command-Line Schema Override
+Override the configured schema for specific operations:
+```bash
+# Use PROD_SCHEMA for this operation only
+tpcds-util schema create --schema PROD_SCHEMA
+tpcds-util load data --schema PROD_SCHEMA
+tpcds-util db info --schema PROD_SCHEMA
+```
+
+### Multiple Environment Management
+Manage different environments easily:
+```bash
+# Development environment
+tpcds-util schema create --schema DEV_TPCDS
+tpcds-util load data --schema DEV_TPCDS
+
+# Production environment  
+tpcds-util schema create --schema PROD_TPCDS
+tpcds-util load data --schema PROD_TPCDS
+
+# Testing environment
+tpcds-util schema create --schema TEST_TPCDS
+tpcds-util load data --schema TEST_TPCDS
+```
+
+### Schema Behavior
+- **Empty schema name**: Uses current user's default schema
+- **Configured schema**: All operations target the configured schema
+- **CLI override**: `--schema` parameter overrides configuration for that command
+- **Schema qualification**: All table names are properly qualified (e.g., `SCHEMA.TABLE_NAME`)
 
 ## Platform Support
 

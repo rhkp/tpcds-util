@@ -45,6 +45,7 @@ def config_show():
     table.add_row("Password", "***" if cfg.database.password else "[Not Set]")
     
     # TPC-DS settings
+    table.add_row("Schema Name", cfg.schema_name or "[Current User Schema]")
     table.add_row("Default Scale", str(cfg.default_scale))
     table.add_row("Output Directory", cfg.default_output_dir)
     table.add_row("Parallel Workers", str(cfg.parallel_workers))
@@ -59,6 +60,7 @@ def config_show():
 @click.option('--username', help='Database username')
 @click.option('--password', help='Database password')
 @click.option('--use-sid', is_flag=True, help='Use SID instead of service name')
+@click.option('--schema-name', help='Target schema name for TPC-DS tables')
 @click.option('--default-scale', type=int, help='Default scale factor')
 @click.option('--output-dir', help='Default output directory')
 @click.option('--parallel-workers', type=int, help='Number of parallel workers')
@@ -86,6 +88,9 @@ def config_init():
     service_name = click.prompt('Database service name', default='orcl')
     username = click.prompt('Database username')
     
+    # Schema settings
+    schema_name = click.prompt('Target schema name (optional)', default='', show_default=False)
+    
     # Other settings
     scale = click.prompt('Default scale factor', default=1, type=int)
     output_dir = click.prompt('Default output directory', default='./tpcds_data')
@@ -96,6 +101,7 @@ def config_init():
         port=port,
         service_name=service_name,
         username=username,
+        schema_name=schema_name,
         default_scale=scale,
         default_output_dir=output_dir,
         parallel_workers=workers
@@ -123,15 +129,18 @@ def db_test():
 
 
 @db.command('info')
-def db_info():
+@click.option('--schema', help='Target schema name (overrides config)')
+def db_info(schema):
     """Show database table information."""
-    tables = db_manager.get_table_info()
+    tables = db_manager.get_table_info(schema)
     
     if not tables:
-        console.print("No TPC-DS tables found. Create schema first with 'tpcds-util schema create'", style="yellow")
+        schema_msg = f" in schema {schema}" if schema else ""
+        console.print(f"No TPC-DS tables found{schema_msg}. Create schema first with 'tpcds-util schema create'", style="yellow")
         return
     
-    table = Table(title="TPC-DS Tables")
+    schema_title = f"TPC-DS Tables{' (Schema: ' + schema + ')' if schema else ''}"
+    table = Table(title=schema_title)
     table.add_column("Table Name", style="cyan")
     table.add_column("Rows", justify="right", style="green")
     table.add_column("Blocks", justify="right")
@@ -156,11 +165,12 @@ def schema():
 
 @schema.command('create')
 @click.option('--schema-file', type=click.Path(exists=True), help='Path to schema SQL file')
-def schema_create(schema_file):
+@click.option('--schema', help='Target schema name (overrides config)')
+def schema_create(schema_file, schema):
     """Create TPC-DS schema."""
     schema_path = Path(schema_file) if schema_file else None
     
-    if db_manager.create_schema(schema_path):
+    if db_manager.create_schema(schema_path, schema):
         console.print("✅ Schema created successfully", style="green")
     else:
         console.print("❌ Schema creation failed", style="red")
@@ -168,9 +178,10 @@ def schema_create(schema_file):
 
 @schema.command('drop')
 @click.option('--confirm', is_flag=True, help='Skip confirmation prompt')
-def schema_drop(confirm):
+@click.option('--schema', help='Target schema name (overrides config)')
+def schema_drop(confirm, schema):
     """Drop TPC-DS schema."""
-    if db_manager.drop_schema(confirm):
+    if db_manager.drop_schema(confirm, schema):
         console.print("✅ Schema dropped successfully", style="green")
     else:
         console.print("❌ Schema drop failed", style="red")
@@ -206,11 +217,12 @@ def load():
 @click.option('--data-dir', type=click.Path(exists=True), help='Directory containing data files')
 @click.option('--parallel', type=int, help='Parallel workers (default from config)')
 @click.option('--table', help='Load specific table only')
-def load_data(data_dir, parallel, table):
+@click.option('--schema', help='Target schema name (overrides config)')
+def load_data(data_dir, parallel, table, schema):
     """Load data into TPC-DS tables."""
     loader = DataLoader()
     
-    if loader.load_data(data_dir, parallel, table):
+    if loader.load_data(data_dir, parallel, table, schema):
         console.print("✅ Data loading completed", style="green")
     else:
         console.print("❌ Data loading failed", style="red")
@@ -218,11 +230,12 @@ def load_data(data_dir, parallel, table):
 
 @load.command('truncate')
 @click.option('--confirm', is_flag=True, help='Skip confirmation prompt')
-def truncate_data(confirm):
+@click.option('--schema', help='Target schema name (overrides config)')
+def truncate_data(confirm, schema):
     """Truncate all TPC-DS tables (remove all data)."""
     loader = DataLoader()
     
-    if loader.truncate_tables(confirm):
+    if loader.truncate_tables(confirm, schema):
         console.print("✅ Data truncation completed", style="green")
     else:
         console.print("❌ Data truncation failed", style="red")
