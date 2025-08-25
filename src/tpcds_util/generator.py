@@ -50,13 +50,21 @@ class DataGenerator:
     
     def generate_data(self, scale: Optional[int] = None, 
                      output_dir: Optional[str] = None,
-                     parallel: Optional[int] = None) -> bool:
+                     parallel: Optional[int] = None,
+                     synthetic: bool = False) -> bool:
         """Generate TPC-DS data files."""
         
         # Use defaults from config if not specified
         scale = scale or self.config.default_scale
         output_dir = output_dir or self.config.default_output_dir
         parallel = parallel or self.config.parallel_workers
+        
+        # Use synthetic data generation if requested
+        if synthetic:
+            from .synthetic_generator import create_synthetic_data
+            console.print("🔬 Generating synthetic TPC-DS compatible data...", style="cyan")
+            console.print("📋 This data is license-free and safe for enterprise use", style="green")
+            return create_synthetic_data(scale=scale, output_dir=output_dir)
         
         # Find dsdgen executable
         dsdgen_path = self._find_dsdgen()

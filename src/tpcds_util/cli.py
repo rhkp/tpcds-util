@@ -192,11 +192,12 @@ def generate():
 @click.option('--scale', type=int, help='Scale factor (default from config)')
 @click.option('--output-dir', type=click.Path(), help='Output directory (default from config)')
 @click.option('--parallel', type=int, help='Parallel workers (default from config)')
-def generate_data(scale, output_dir, parallel):
+@click.option('--synthetic', is_flag=True, help='Generate synthetic data instead of using TPC-DS kit (license-free)')
+def generate_data(scale, output_dir, parallel, synthetic):
     """Generate TPC-DS data files."""
     generator = DataGenerator()
     
-    if generator.generate_data(scale, output_dir, parallel):
+    if generator.generate_data(scale, output_dir, parallel, synthetic):
         console.print("✅ Data generation completed", style="green")
     else:
         console.print("❌ Data generation failed", style="red")
