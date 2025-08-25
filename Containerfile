@@ -22,55 +22,41 @@ RUN dnf update -y && \
         procps \
     && dnf clean all
 
-# Oracle Instant Client will be provided by init container at runtime
-# This approach ensures licensing compliance while supporting OpenShift deployments
-# See: https://www.oracle.com/downloads/licenses/instant-client-lic.html
-#
-# Oracle client libraries will be downloaded to shared volume by init container
-# Users accept Oracle license terms through environment variable ACCEPT_ORACLE_LICENSE=yes
-#
-# Set Oracle environment variables (client provided by init container)
+# Set environment variables for Oracle client
 ENV ORACLE_HOME=/opt/oracle/instantclient
 ENV LD_LIBRARY_PATH=$ORACLE_HOME:$LD_LIBRARY_PATH
 ENV PATH=$ORACLE_HOME:$PATH
 
-# Create application directory
+# Set working directory
 WORKDIR /app
 
-# Copy Python requirements first for better layer caching
+# Copy requirements and install Python dependencies
 COPY requirements.txt .
-
-# Install Python dependencies
 RUN pip3 install --no-cache-dir --upgrade pip && \
     pip3 install --no-cache-dir -r requirements.txt
 
-# Copy application source code
+# Copy application code
 COPY src/ ./src/
 COPY setup.py .
 COPY README.md .
 COPY oracle_tpcds_schema.sql .
 
-# Install the tpcds-util package
+# Install the application
 RUN pip3 install --no-cache-dir -e .
 
-# Create non-root user for security
+# Create non-root user
 RUN useradd -m -u 1001 tpcds && \
     chown -R tpcds:tpcds /app
 
 # Switch to non-root user
 USER tpcds
 
-# Create config directory
+# Create user directories
 RUN mkdir -p /home/tpcds/.tpcds-util
 
-# Set default working directory for data generation
+# Set working directory to user home
 WORKDIR /home/tpcds
 
-# Expose any ports if needed (none for CLI tool)
-# EXPOSE 8080
-
-# Set default entrypoint
+# Set entrypoint
 ENTRYPOINT ["tpcds-util"]
-
-# Default command
 CMD ["--help"]
