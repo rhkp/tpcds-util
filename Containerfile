@@ -22,10 +22,13 @@ RUN dnf update -y && \
         procps \
     && dnf clean all
 
-# Set environment variables for Oracle client
+# Set environment variables for Oracle client (will use thick mode if available)
 ENV ORACLE_HOME=/opt/oracle/instantclient
 ENV LD_LIBRARY_PATH=$ORACLE_HOME:$LD_LIBRARY_PATH
 ENV PATH=$ORACLE_HOME:$PATH
+
+# Note: Oracle client will use thin mode by default (no client libraries needed)
+# For thick mode support, mount Oracle client libraries from host or init container
 
 # Set working directory
 WORKDIR /app

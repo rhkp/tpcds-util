@@ -200,19 +200,21 @@ def schema_create(schema_file, schema):
 @click.option('--confirm', is_flag=True, help='Skip confirmation prompt')
 @click.option('--schema', help='Target schema name (overrides config). Requires DROP [ANY] TABLE privileges.')
 def schema_drop(confirm, schema):
-    """Drop TPC-DS schema.
+    """Drop TPC-DS tables (not the schema itself).
     
-    Drops TPC-DS tables from your current user's schema by default.
+    Drops all TPC-DS tables from your current user's schema by default.
     Use --schema to target a different schema (requires database privileges).
     
+    Note: This only removes TPC-DS tables, not the Oracle schema/user itself.
+    
     Examples:
-      tpcds-util schema drop                      # Drop from current user's schema
-      tpcds-util schema drop --schema TPCDSV1    # Drop from specific schema (needs privileges)
+      tpcds-util schema drop                      # Drop tables from current user's schema
+      tpcds-util schema drop --schema TPCDSV1    # Drop tables from specific schema (needs privileges)
     """
     if db_manager.drop_schema(confirm, schema):
-        console.print("✅ Schema dropped successfully", style="green")
+        console.print("✅ TPC-DS tables dropped successfully", style="green")
     else:
-        console.print("❌ Schema drop failed", style="red")
+        console.print("❌ TPC-DS tables drop failed", style="red")
 
 
 @cli.group()

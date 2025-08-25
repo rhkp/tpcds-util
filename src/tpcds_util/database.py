@@ -335,12 +335,12 @@ class DatabaseManager:
         return self.execute_sql_file(schema_file, target_schema=schema_name)
     
     def drop_schema(self, confirm: bool = False, schema_override: Optional[str] = None) -> bool:
-        """Drop TPC-DS schema (with confirmation)."""
+        """Drop TPC-DS tables (with confirmation). Note: This does not drop the Oracle schema/user itself."""
         schema_name = self._get_schema_name(schema_override)
         
         if not confirm:
             schema_msg = f" from schema {schema_name}" if schema_name else ""
-            if not click.confirm(f"This will drop all TPC-DS tables and data{schema_msg}. Continue?"):
+            if not click.confirm(f"This will drop all TPC-DS tables and data{schema_msg} (not the schema itself). Continue?"):
                 click.echo("Operation cancelled.")
                 return False
         
@@ -383,7 +383,8 @@ class DatabaseManager:
                     existing_tables = [row[0] for row in cursor.fetchall()]
                     
                     if not existing_tables:
-                        console.print("No TPC-DS tables found to drop.", style="yellow")
+                        schema_msg = f" in schema {schema_name}" if schema_name else ""
+                        console.print(f"No TPC-DS tables found to drop{schema_msg}.", style="yellow")
                         return True
                     
                     console.print(f"Found {len(existing_tables)} TPC-DS tables to drop", style="cyan")
