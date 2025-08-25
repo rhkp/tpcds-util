@@ -1,18 +1,17 @@
 # TPC-DS Utility
 
-A simple, user-friendly command-line utility for managing TPC-DS benchmarks on Oracle databases.
+A simple, user-friendly command-line utility for generating TPC-DS compliant synthetic data and managing TPC-DS benchmarks on Oracle databases.
 
-## Important Notice
+## Overview
 
-**This utility is a wrapper around the [TPC-DS Kit](https://www.tpc.org/tpc_documents_current_versions/current_specifications5.asp).** You must obtain and install the TPC-DS Kit separately. The TPC-DS Kit has its own license terms that you are responsible for reviewing and complying with. This utility does not include or redistribute any TPC-DS Kit components.
+This utility generates realistic synthetic data that complies with the TPC-DS specification. All data is generated programmatically without external dependencies.
 
 ## Features
 
+- **Synthetic Data Generation**: Generate TPC-DS compliant data with realistic business patterns
 - **Easy Configuration**: Simple setup with interactive configuration
 - **Database Management**: Create/drop schemas, test connections
-- **Data Generation**: Generate TPC-DS data files with configurable scale factors
 - **Data Loading**: Load data into Oracle with parallel processing
-- **Query Management**: Generate and execute TPC-DS queries
 - **Rich CLI**: Beautiful command-line interface with progress bars and tables
 
 ## Installation
@@ -21,14 +20,13 @@ A simple, user-friendly command-line utility for managing TPC-DS benchmarks on O
 
 - Python 3.8+
 - Oracle Client Libraries (see [Oracle Instant Client](https://www.oracle.com/database/technologies/instant-client.html))
-- TPC-DS Kit (you must download and build this separately - see setup section below)
 - Oracle database with appropriate privileges for schema creation
 
 ### Install from Source
 
 ```bash
-git clone https://github.com/rhkp/TPC-DS_Oracle.git
-cd TPC-DS_Oracle/tpcds-util
+git clone https://github.com/rhkp/tpcds-util.git
+cd tpcds-util
 pip install -e .
 ```
 
@@ -48,8 +46,9 @@ tpcds-util config init
 
 This will prompt you for:
 - Database connection details
-- TPC-DS kit path
-- Default settings
+- Default scale factor
+- Output directory
+- Parallel workers
 
 ### 2. Test Database Connection
 
@@ -57,224 +56,222 @@ This will prompt you for:
 tpcds-util db test
 ```
 
-### 3. Create Schema
+### 3. Create TPC-DS Schema
 
 ```bash
 tpcds-util schema create
 ```
 
-### 4. Generate Data
+### 4. Generate Synthetic Data
 
 ```bash
-# Generate scale factor 1 data
 tpcds-util generate data --scale 1
-
-# Generate with custom output directory
-tpcds-util generate data --scale 5 --output-dir ./sf5_data
 ```
 
-### 5. Load Data
+### 5. Load Data into Database
 
 ```bash
-# Load all tables
-tpcds-util load data
-
-# Load specific table
-tpcds-util load data --table store_sales
-
-# Load with parallel processing
-tpcds-util load data --parallel 8
+tpcds-util load data --data-dir ./tpcds_data
 ```
 
-### 6. Check Status
+### 6. Verify Installation
 
 ```bash
-tpcds-util status
 tpcds-util db info
+tpcds-util status
 ```
 
-## Command Reference
+## Detailed Usage
 
-### Configuration Commands
+### Configuration
 
+Show current configuration:
 ```bash
-# Show current configuration
 tpcds-util config show
-
-# Set individual configuration values
-tpcds-util config set --host localhost --port 1521
-tpcds-util config set --username myuser
-tpcds-util config set --tpcds-kit-path /path/to/tpcds-kit
-
-# Initialize configuration with prompts
-tpcds-util config init
 ```
 
-### Database Commands
-
+Update specific settings:
 ```bash
-# Test database connection
-tpcds-util db test
+tpcds-util config set --host mydb.example.com --port 1521
+tpcds-util config set --username myuser --default-scale 2
+```
 
-# Show table information
+### Data Generation
+
+Generate different scale factors:
+```bash
+# Small dataset (scale factor 1)
+tpcds-util generate data --scale 1 --output-dir ./small_data
+
+# Medium dataset (scale factor 10)  
+tpcds-util generate data --scale 10 --output-dir ./medium_data
+
+# Custom output directory
+tpcds-util generate data --output-dir /custom/path/data
+```
+
+The synthetic data generator creates:
+- **25 TPC-DS tables** with proper relationships
+- **Realistic business patterns** including geographic distribution
+- **Seasonal variations** in sales data
+- **Multi-channel retail** (store, web, catalog sales)
+- **Customer demographics** linked to addresses and purchase behavior
+
+### Data Loading
+
+Load all tables:
+```bash
+tpcds-util load data --data-dir ./tpcds_data
+```
+
+Load specific table:
+```bash
+tpcds-util load data --data-dir ./tpcds_data --table customer
+```
+
+Load with custom parallelism:
+```bash
+tpcds-util load data --data-dir ./tpcds_data --parallel 8
+```
+
+Truncate all data:
+```bash
+tpcds-util load truncate --confirm
+```
+
+### Schema Management
+
+Create schema:
+```bash
+tpcds-util schema create
+```
+
+Drop schema (with confirmation):
+```bash
+tpcds-util schema drop
+```
+
+### Database Operations
+
+Test connection:
+```bash
+tpcds-util db test
+```
+
+Show table information:
+```bash
 tpcds-util db info
 ```
 
-### Schema Commands
-
+Overall status:
 ```bash
-# Create TPC-DS schema
-tpcds-util schema create
-
-# Drop TPC-DS schema (with confirmation)
-tpcds-util schema drop
-
-# Drop without confirmation
-tpcds-util schema drop --confirm
-```
-
-### Data Generation Commands
-
-```bash
-# Generate data with default scale
-tpcds-util generate data
-
-# Generate with specific scale factor
-tpcds-util generate data --scale 10
-
-# Generate with parallel processing
-tpcds-util generate data --scale 5 --parallel 4
-
-# Generate to specific directory
-tpcds-util generate data --output-dir /data/tpcds
-```
-
-### Data Loading Commands
-
-```bash
-# Load all data files
-tpcds-util load data
-
-# Load from specific directory
-tpcds-util load data --data-dir /data/tpcds
-
-# Load specific table
-tpcds-util load data --table customer
-
-# Load with parallel processing
-tpcds-util load data --parallel 8
-
-# If loading gets interrupted, clear data first and reload
-tpcds-util load truncate --confirm
-tpcds-util load data
-```
-
-**Note:** If the data loading process gets interrupted for any reason (network issues, timeouts, etc.), it's recommended to truncate all data first before reloading to avoid constraint violations from partial data.
-
-### Utility Commands
-
-```bash
-# Show overall system status
 tpcds-util status
-
-# Show help
-tpcds-util --help
-tpcds-util <command> --help
 ```
 
-## Configuration
+## Configuration File
 
-The utility stores configuration in `~/.tpcds-util/config.yaml`. You can edit this file directly or use the CLI commands.
-
-Example configuration:
+The utility stores configuration in `~/.tpcds-util/config.yaml`:
 
 ```yaml
 database:
   host: localhost
   port: 1521
   service_name: orcl
-  username: tpcds_user
-  password: ""  # Leave empty to prompt or use environment variable
+  username: tpcds
+  password: ""
+  use_sid: false
 
-tpcds_kit_path: /opt/tpcds-kit
 default_scale: 1
 default_output_dir: ./tpcds_data
 parallel_workers: 4
 ```
 
-### Environment Variables
+## Generated Data Structure
 
-- `TPCDS_DB_PASSWORD`: Database password (avoids prompting)
+The synthetic data generator creates files for all 25 TPC-DS tables:
 
-## TPC-DS Kit Setup
+**Dimension Tables:**
+- `call_center.dat` - Call center information
+- `catalog_page.dat` - Catalog page details
+- `customer.dat` - Customer information
+- `customer_address.dat` - Customer addresses
+- `customer_demographics.dat` - Customer demographics
+- `date_dim.dat` - Date dimension
+- `household_demographics.dat` - Household demographics
+- `income_band.dat` - Income bands
+- `item.dat` - Product items
+- `promotion.dat` - Promotional campaigns
+- `reason.dat` - Return reasons
+- `ship_mode.dat` - Shipping methods
+- `store.dat` - Store information
+- `time_dim.dat` - Time dimension
+- `warehouse.dat` - Warehouse information
+- `web_page.dat` - Web page details
+- `web_site.dat` - Web site information
 
-**Required:** You must set up the TPC-DS Kit before using this utility.
+**Fact Tables:**
+- `catalog_sales.dat` - Catalog sales transactions
+- `catalog_returns.dat` - Catalog returns
+- `inventory.dat` - Inventory levels
+- `store_sales.dat` - Store sales transactions
+- `store_returns.dat` - Store returns
+- `web_sales.dat` - Web sales transactions
+- `web_returns.dat` - Web returns
 
-1. Download the TPC-DS Kit from [TPC website](https://www.tpc.org/tpc_documents_current_versions/current_specifications5.asp) or use the [community version](https://github.com/gregrahn/tpcds-kit)
+**Metadata:**
+- `dbgen_version.dat` - Generation metadata
 
-2. Review the TPC-DS Kit license terms (EULA.txt) to ensure compliance with your use case
+## Data Characteristics
 
-3. Build the tools:
-   ```bash
-   cd tpcds-kit/tools
-   make
-   ```
+The synthetic data includes:
 
-4. Set the path in configuration:
-   ```bash
-   tpcds-util config set --tpcds-kit-path /path/to/tpcds-kit
-   ```
+- **Geographic Distribution**: Customers across 4 US regions with proper timezone mapping
+- **Seasonal Patterns**: Sales data reflecting realistic business cycles
+- **Product Categories**: Electronics, Clothing, Home & Garden, Sports, Books, Automotive
+- **Customer Segments**: Varied demographics, education levels, and income bands
+- **Business Relationships**: Proper foreign key relationships across all tables
+- **Realistic Volumes**: Configurable scale factors for different dataset sizes
 
-5. Verify the setup:
-   ```bash
-   tpcds-util config show
-   ```
+## Platform Support
 
-### Platform Notes
+- **Linux**: Fully supported
+- **macOS**: Fully supported  
+- **Windows**: Supported via WSL or native Python
 
-- **macOS**: May require build modifications - see [macOS compatibility notes](https://github.com/rhkp/TPC-DS_Oracle#macos-compatibility-notes)
-- **Linux**: Generally builds without issues
-- **Windows**: Use WSL or mingw for building TPC-DS Kit
+## Troubleshooting
 
-## Examples
+### Common Issues
 
-### Complete Workflow Example
+**Database Connection Failed**
+- Verify Oracle client libraries are installed
+- Check database credentials and connectivity
+- Ensure database service is running
+
+**Permission Denied**
+- Verify database user has CREATE TABLE privileges
+- Check Oracle tablespace permissions
+
+**Data Loading Errors**
+- Verify schema exists before loading data
+- Check for sufficient database storage space
+- Review Oracle error logs for specific issues
+
+**Configuration Issues**
+- Check `~/.tpcds-util/config.yaml` syntax
+- Verify file permissions on config directory
+- Use `tpcds-util config init` to recreate configuration
+
+### Getting Help
 
 ```bash
-# 1. Setup
-tpcds-util config init
-tpcds-util db test
-
-# 2. Create schema
-tpcds-util schema create
-
-# 3. Generate and load scale factor 1 data
-tpcds-util generate data --scale 1
-tpcds-util load data
-
-# 4. Check results
-tpcds-util db info
-tpcds-util status
+tpcds-util --help
+tpcds-util generate --help
+tpcds-util load --help
 ```
 
-### Cleanup Example
+## License
 
-```bash
-# Drop schema and all data
-tpcds-util schema drop --confirm
-
-# Or just truncate tables (keep schema)
-tpcds-util load truncate --confirm
-```
-
-## Architecture
-
-The utility is built with:
-
-- **Click**: Command-line interface framework
-- **cx_Oracle**: Oracle database connectivity
-- **Rich**: Beautiful terminal output
-- **PyYAML**: Configuration management
+This utility is open source. The synthetic data generated is license-free and safe for enterprise use.
 
 ## Contributing
 
@@ -284,12 +281,9 @@ The utility is built with:
 4. Add tests
 5. Submit a pull request
 
-## License
-
-MIT License - see LICENSE file for details.
-
 ## Support
 
-- Check the [main repository](https://github.com/rhkp/TPC-DS_Oracle) for issues
-- Refer to TPC-DS documentation for benchmark details
-- Oracle documentation for database-specific issues
+For issues and questions:
+- Check existing GitHub issues
+- Create a new issue with detailed information
+- Include configuration and error logs when reporting problems

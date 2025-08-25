@@ -179,7 +179,7 @@ tpcds_data/
 *_data/
 queries_scale_*/
 
-# TPC-DS Kit - external dependency, not our code
+
 tpcds-kit/
 TPC-DS*/
 

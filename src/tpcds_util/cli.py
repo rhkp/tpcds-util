@@ -45,7 +45,6 @@ def config_show():
     table.add_row("Password", "***" if cfg.database.password else "[Not Set]")
     
     # TPC-DS settings
-    table.add_row("TPC-DS Kit Path", cfg.tpcds_kit_path or "[Not Set]")
     table.add_row("Default Scale", str(cfg.default_scale))
     table.add_row("Output Directory", cfg.default_output_dir)
     table.add_row("Parallel Workers", str(cfg.parallel_workers))
@@ -60,7 +59,6 @@ def config_show():
 @click.option('--username', help='Database username')
 @click.option('--password', help='Database password')
 @click.option('--use-sid', is_flag=True, help='Use SID instead of service name')
-@click.option('--tpcds-kit-path', help='Path to TPC-DS kit')
 @click.option('--default-scale', type=int, help='Default scale factor')
 @click.option('--output-dir', help='Default output directory')
 @click.option('--parallel-workers', type=int, help='Number of parallel workers')
@@ -88,9 +86,6 @@ def config_init():
     service_name = click.prompt('Database service name', default='orcl')
     username = click.prompt('Database username')
     
-    # TPC-DS kit path
-    kit_path = click.prompt('TPC-DS kit path (optional)', default='', show_default=False)
-    
     # Other settings
     scale = click.prompt('Default scale factor', default=1, type=int)
     output_dir = click.prompt('Default output directory', default='./tpcds_data')
@@ -101,7 +96,6 @@ def config_init():
         port=port,
         service_name=service_name,
         username=username,
-        tpcds_kit_path=kit_path,
         default_scale=scale,
         default_output_dir=output_dir,
         parallel_workers=workers
@@ -192,12 +186,11 @@ def generate():
 @click.option('--scale', type=int, help='Scale factor (default from config)')
 @click.option('--output-dir', type=click.Path(), help='Output directory (default from config)')
 @click.option('--parallel', type=int, help='Parallel workers (default from config)')
-@click.option('--synthetic', is_flag=True, help='Generate synthetic data instead of using TPC-DS kit (license-free)')
-def generate_data(scale, output_dir, parallel, synthetic):
-    """Generate TPC-DS data files."""
+def generate_data(scale, output_dir, parallel):
+    """Generate synthetic TPC-DS data files."""
     generator = DataGenerator()
     
-    if generator.generate_data(scale, output_dir, parallel, synthetic):
+    if generator.generate_data(scale, output_dir, parallel):
         console.print("✅ Data generation completed", style="green")
     else:
         console.print("❌ Data generation failed", style="red")
@@ -243,7 +236,7 @@ def status():
     
     # Configuration status
     cfg = config_manager.load()
-    if cfg.database.username and cfg.tpcds_kit_path:
+    if cfg.database.username:
         console.print("✅ Configuration: Complete", style="green")
     else:
         console.print("⚠️  Configuration: Incomplete", style="yellow")

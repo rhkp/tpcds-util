@@ -33,7 +33,6 @@ class DatabaseConfig:
 class TPCDSConfig:
     """TPC-DS utility configuration."""
     database: DatabaseConfig
-    tpcds_kit_path: str = ""
     default_scale: int = 1
     default_output_dir: str = "./tpcds_data"
     parallel_workers: int = 4
@@ -50,7 +49,6 @@ class TPCDSConfig:
         
         return cls(
             database=database,
-            tpcds_kit_path=data.get('tpcds_kit_path', ''),
             default_scale=data.get('default_scale', 1),
             default_output_dir=data.get('default_output_dir', './tpcds_data'),
             parallel_workers=data.get('parallel_workers', 4)
@@ -113,7 +111,7 @@ class ConfigManager:
                 setattr(config.database, key, kwargs[key])
         
         # Update main config
-        for key in ['tpcds_kit_path', 'default_scale', 'default_output_dir', 'parallel_workers']:
+        for key in ['default_scale', 'default_output_dir', 'parallel_workers']:
             if key in kwargs and kwargs[key] is not None:
                 setattr(config, key, kwargs[key])
         
