@@ -18,7 +18,11 @@ console = Console()
 @click.group()
 @click.version_option()
 def cli():
-    """TPC-DS Utility - Manage TPC-DS benchmarks on Oracle databases."""
+    """TPC-DS Utility - Generate synthetic TPC-DS data and manage Oracle databases.
+    
+    By default, operations use your current database user's schema. To target a different
+    schema, use the --schema option (requires appropriate database privileges).
+    """
     pass
 
 
@@ -89,6 +93,10 @@ def config_init():
     username = click.prompt('Database username')
     
     # Schema settings
+    click.echo("\nSchema Configuration:")
+    click.echo("• Leave empty to use your current user's schema (recommended)")
+    click.echo("• Specify a schema name to create tables in a different schema")
+    click.echo("• Note: Different schemas require additional database privileges")
     schema_name = click.prompt('Target schema name (optional)', default='', show_default=False)
     
     # Other settings
@@ -131,7 +139,11 @@ def db_test():
 @db.command('info')
 @click.option('--schema', help='Target schema name (overrides config)')
 def db_info(schema):
-    """Show database table information."""
+    """Show database table information.
+    
+    Shows TPC-DS tables from your current user's schema by default.
+    Use --schema to query a different schema.
+    """
     tables = db_manager.get_table_info(schema)
     
     if not tables:
@@ -165,9 +177,17 @@ def schema():
 
 @schema.command('create')
 @click.option('--schema-file', type=click.Path(exists=True), help='Path to schema SQL file')
-@click.option('--schema', help='Target schema name (overrides config)')
+@click.option('--schema', help='Target schema name (overrides config). Requires CREATE [ANY] TABLE privileges.')
 def schema_create(schema_file, schema):
-    """Create TPC-DS schema."""
+    """Create TPC-DS schema.
+    
+    Creates TPC-DS tables in your current user's schema by default.
+    Use --schema to target a different schema (requires database privileges).
+    
+    Examples:
+      tpcds-util schema create                    # Use current user's schema
+      tpcds-util schema create --schema TPCDSV1  # Use specific schema (needs privileges)
+    """
     schema_path = Path(schema_file) if schema_file else None
     
     if db_manager.create_schema(schema_path, schema):
@@ -178,9 +198,17 @@ def schema_create(schema_file, schema):
 
 @schema.command('drop')
 @click.option('--confirm', is_flag=True, help='Skip confirmation prompt')
-@click.option('--schema', help='Target schema name (overrides config)')
+@click.option('--schema', help='Target schema name (overrides config). Requires DROP [ANY] TABLE privileges.')
 def schema_drop(confirm, schema):
-    """Drop TPC-DS schema."""
+    """Drop TPC-DS schema.
+    
+    Drops TPC-DS tables from your current user's schema by default.
+    Use --schema to target a different schema (requires database privileges).
+    
+    Examples:
+      tpcds-util schema drop                      # Drop from current user's schema
+      tpcds-util schema drop --schema TPCDSV1    # Drop from specific schema (needs privileges)
+    """
     if db_manager.drop_schema(confirm, schema):
         console.print("✅ Schema dropped successfully", style="green")
     else:
@@ -217,9 +245,18 @@ def load():
 @click.option('--data-dir', type=click.Path(exists=True), help='Directory containing data files')
 @click.option('--parallel', type=int, help='Parallel workers (default from config)')
 @click.option('--table', help='Load specific table only')
-@click.option('--schema', help='Target schema name (overrides config)')
+@click.option('--schema', help='Target schema name (overrides config). Requires INSERT privileges.')
 def load_data(data_dir, parallel, table, schema):
-    """Load data into TPC-DS tables."""
+    """Load synthetic data into TPC-DS tables.
+    
+    Loads data into your current user's schema by default.
+    Use --schema to target a different schema (requires database privileges).
+    
+    Examples:
+      tpcds-util load data                        # Load into current user's schema
+      tpcds-util load data --schema TPCDSV1      # Load into specific schema (needs privileges)
+      tpcds-util load data --table store_sales   # Load specific table only
+    """
     loader = DataLoader()
     
     if loader.load_data(data_dir, parallel, table, schema):
@@ -230,9 +267,13 @@ def load_data(data_dir, parallel, table, schema):
 
 @load.command('truncate')
 @click.option('--confirm', is_flag=True, help='Skip confirmation prompt')
-@click.option('--schema', help='Target schema name (overrides config)')
+@click.option('--schema', help='Target schema name (overrides config). Requires DELETE privileges.')
 def truncate_data(confirm, schema):
-    """Truncate all TPC-DS tables (remove all data)."""
+    """Truncate all TPC-DS tables (remove all data).
+    
+    Truncates tables in your current user's schema by default.
+    Use --schema to target a different schema (requires database privileges).
+    """
     loader = DataLoader()
     
     if loader.truncate_tables(confirm, schema):

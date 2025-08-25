@@ -261,6 +261,58 @@ The synthetic data includes:
 - **Business Relationships**: Proper foreign key relationships across all tables
 - **Realistic Volumes**: Configurable scale factors for different dataset sizes
 
+## Database User Configuration
+
+The utility supports different database users through its flexible configuration system:
+
+### Switching Database Users
+
+You can easily switch between database users using the configuration system:
+
+```bash
+# Use SYSTEM user (has DBA privileges for any schema)
+tpcds-util config set --username system
+
+# Use SYS user (has DBA privileges for any schema)  
+tpcds-util config set --username sys
+
+# Use a regular application user
+tpcds-util config set --username tpcds
+
+# View current configuration
+tpcds-util config show
+```
+
+### User Types and Capabilities
+
+**DBA Users (SYSTEM, SYS)**:
+- Can create/drop tables in any schema
+- Can load data into any schema
+- No additional privilege grants needed
+- Recommended for cross-schema operations
+
+**Regular Users (TPCDS, APP_USER, etc.)**:
+- Can work within their own schema by default
+- Require additional privileges for cross-schema operations
+- Good for dedicated application schemas
+
+### Configuration Examples
+
+**For Cross-Schema Operations (Recommended)**:
+```bash
+# Configure DBA user and target schema
+tpcds-util config set --username system --schema-name TPCDSV1
+tpcds-util schema create  # Creates tables in TPCDSV1 schema
+tpcds-util load data      # Loads data into TPCDSV1 schema
+```
+
+**For Single-Schema Operations**:
+```bash
+# Configure regular user (uses their default schema)
+tpcds-util config set --username myuser --schema-name ""
+tpcds-util schema create  # Creates tables in myuser's default schema
+```
+
 ## Multi-Schema Support
 
 The utility supports working with multiple schemas in the same database:
@@ -305,11 +357,135 @@ tpcds-util load data --schema TEST_TPCDS
 - **CLI override**: `--schema` parameter overrides configuration for that command
 - **Schema qualification**: All table names are properly qualified (e.g., `SCHEMA.TABLE_NAME`)
 
+## Container Support
+
+The TPC-DS utility is available as a container image optimized for cloud-native deployments including OpenShift and Kubernetes.
+
+### Cloud-Native Architecture
+
+**Init Container Pattern**: We use an init container approach that downloads Oracle Instant Client at runtime, ensuring:
+- ✅ **Oracle license compliance** - No Oracle software bundled in images
+- ✅ **OpenShift compatibility** - No host mounts or privileged containers required
+- ✅ **Multi-node clusters** - Works across any Kubernetes/OpenShift cluster
+- ✅ **Operational simplicity** - No manual Oracle client installation needed
+
+### Quick Start with Podman Compose
+
+```bash
+# Accept Oracle license and start services
+export ACCEPT_ORACLE_LICENSE=yes
+export TPCDS_DB_PASSWORD=your_password
+
+# Build and start with automatic Oracle client download
+podman-compose up
+
+# Interactive shell
+podman-compose exec tpcds-util bash
+```
+
+### Building Container Images
+
+```bash
+# Build main application container
+podman build -t tpcds-util -f Containerfile .
+
+# Build Oracle client init container
+podman build -t oracle-client-init -f Containerfile.oracle-init .
+```
+
+### OpenShift/Kubernetes Deployment
+
+**Deploy with manifests**:
+```bash
+# Create namespace
+oc new-project tpcds-util
+
+# Deploy persistent volumes
+oc apply -f k8s/pvc.yaml
+
+# Create secrets and config
+echo -n "your_password" | base64  # Get base64 encoded password
+oc apply -f k8s/secret.yaml       # Add password to secret first
+
+# Deploy application
+oc apply -f k8s/deployment.yaml
+
+# Run data generation job
+oc apply -f k8s/job.yaml
+```
+
+**Monitor progress**:
+```bash
+# Watch init container download Oracle client
+oc logs -f deployment/tpcds-util -c oracle-client-init
+
+# Check main application
+oc logs -f deployment/tpcds-util -c tpcds-util
+
+# Execute commands in running pod
+oc exec -it deployment/tpcds-util -- tpcds-util status
+```
+
+### Container Registry
+
+Images are available from Quay.io:
+```bash
+# Pull latest images
+podman pull quay.io/tpcds/tpcds-util:latest
+podman pull quay.io/tpcds/oracle-client-init:latest
+```
+
+### Usage Examples
+
+**Standalone data generation**:
+```bash
+# Generate data only (no database connection)
+podman run --rm \
+  -v ./output:/home/tpcds/tpcds_data \
+  quay.io/tpcds/tpcds-util:latest \
+  generate data --scale 1
+```
+
+**Full workflow with Oracle database**:
+```bash
+# Run with init container for Oracle client
+podman run --rm -it \
+  --init \
+  -e ACCEPT_ORACLE_LICENSE=yes \
+  -e TPCDS_DB_PASSWORD=password \
+  -v tpcds-data:/home/tpcds/tpcds_data \
+  quay.io/tpcds/tpcds-util:latest \
+  load data --schema PRODUCTION
+```
+
+**OpenShift data generation job**:
+```bash
+# Create one-time data generation job
+oc create job tpcds-gen-$(date +%s) \
+  --from=job/tpcds-data-generator \
+  --dry-run=client -o yaml | oc apply -f -
+```
+
+### Oracle Licensing Compliance
+
+✅ **License Compliant Approach**: 
+- Oracle Instant Client is downloaded at runtime by init container
+- User explicitly accepts Oracle license terms via `ACCEPT_ORACLE_LICENSE=yes`
+- No Oracle software is bundled or redistributed in container images
+- Complies with Oracle's licensing terms: https://www.oracle.com/downloads/licenses/instant-client-lic.html
+
+**License Requirements**:
+- Use for business operations and development/testing only
+- Cannot redistribute or charge end users
+- Must comply with export control laws
+- User responsibility to accept Oracle's terms
+
 ## Platform Support
 
-- **Linux**: Fully supported
-- **macOS**: Fully supported  
+- **Linux**: Fully supported (native and containerized)
+- **macOS**: Fully supported (native and containerized)
 - **Windows**: Supported via WSL or native Python
+- **Containers**: Podman and Docker compatible
 
 ## Troubleshooting
 
@@ -321,7 +497,8 @@ tpcds-util load data --schema TEST_TPCDS
 - Ensure database service is running
 
 **Permission Denied**
-- Verify database user has CREATE TABLE privileges
+- For cross-schema operations, switch to a DBA user: `tpcds-util config set --username system`
+- Verify database user has necessary privileges for the target schema
 - Check Oracle tablespace permissions
 
 **Data Loading Errors**

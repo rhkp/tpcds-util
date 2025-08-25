@@ -154,9 +154,11 @@ TRAILING NULLCOLS
                     # First, get the table structure with data types
                     try:
                         if schema_name:
-                            cursor.execute(f"SELECT column_name, data_type FROM all_tab_columns WHERE owner = '{schema_name}' AND table_name = '{table.upper()}' ORDER BY column_id")
+                            cursor.execute("SELECT column_name, data_type FROM all_tab_columns WHERE owner = :schema_name AND table_name = :table_name ORDER BY column_id", 
+                                         {'schema_name': schema_name, 'table_name': table.upper()})
                         else:
-                            cursor.execute(f"SELECT column_name, data_type FROM user_tab_columns WHERE table_name = '{table.upper()}' ORDER BY column_id")
+                            cursor.execute("SELECT column_name, data_type FROM user_tab_columns WHERE table_name = :table_name ORDER BY column_id", 
+                                         {'table_name': table.upper()})
                         table_structure = cursor.fetchall()
                         columns = [row[0] for row in table_structure]
                         column_types = {row[0]: row[1] for row in table_structure}

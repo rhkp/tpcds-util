@@ -1,0 +1,36 @@
+# Oracle Instant Client Init Container
+# Downloads Oracle client libraries at runtime to shared volume
+# Ensures licensing compliance for OpenShift and cloud environments
+
+FROM registry.access.redhat.com/ubi9/ubi:latest
+
+# Set labels
+LABEL name="oracle-client-init" \
+      version="19.23.0" \
+      description="Init container to download Oracle Instant Client libraries" \
+      maintainer="TPC-DS Utility Team" \
+      license="Oracle-License-Required"
+
+# Install download utilities
+RUN dnf update -y && \
+    dnf install -y \
+        wget \
+        unzip \
+        ca-certificates \
+    && dnf clean all
+
+# Oracle client version
+ENV ORACLE_VERSION=19.23.0.0.0
+
+# Create Oracle directory
+RUN mkdir -p /opt/oracle/instantclient
+
+# Copy the download script
+COPY scripts/download-oracle-client.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/download-oracle-client.sh
+
+# Set working directory
+WORKDIR /tmp
+
+# Default command downloads Oracle client to shared volume
+CMD ["/usr/local/bin/download-oracle-client.sh"]

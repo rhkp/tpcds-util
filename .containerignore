@@ -1,0 +1,69 @@
+# Git files
+.git
+.gitignore
+
+# Python cache
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info
+.pytest_cache
+.coverage
+
+# Development files
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# Data files
+*.dat
+*.tbl
+tpcds_data/
+*_data/
+
+# Log files
+*.log
+*.out
+
+# Temporary files
+*.tmp
+*.temp
+temp/
+tmp/
+
+# Build artifacts
+build/
+dist/
+*.wheel
+
+# Documentation
+docs/
+*.md
+!README.md
+
+# Container files
+Containerfile.*
+podman-compose.yml.*
+
+# Configuration files with potential secrets
+config.yaml
+*.yaml
+!example.yaml
+
+# Oracle client (will be mounted)
+instantclient*
+*.zip
+*.dmg
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Backup files
+*.bak
+*.backup
+*.old
