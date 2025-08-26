@@ -164,12 +164,13 @@ TRAILING NULLCOLS
                         column_types = {row[0]: row[1] for row in table_structure}
                         
                         if not columns:
-                            console.print(f"Table {table.upper()} not found in database", style="yellow")
-                            return True  # Skip missing tables for now
+                            console.print(f"Table {table.upper()} not found in database", style="red")
+                            console.print(f"❌ Need to create table {table.upper()} first with schema create command", style="red")
+                            return False  # Fail if table doesn't exist
                             
-                    except oracledb.Error:
-                        console.print(f"Could not get structure for table {table.upper()}", style="yellow") 
-                        return True  # Skip on error for now
+                    except oracledb.Error as e:
+                        console.print(f"Could not get structure for table {table.upper()}: {e}", style="red") 
+                        return False  # Fail on error instead of skipping
                     
                     # Read and insert data in batches for better performance
                     rows_inserted = 0

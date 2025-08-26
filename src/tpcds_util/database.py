@@ -54,6 +54,8 @@ class DatabaseManager:
                 password=password,
                 dsn=self.config.database.dsn
             )
+            # Enable autocommit to prevent transaction rollback on container termination
+            connection.autocommit = True
             yield connection
         except oracledb.Error as e:
             click.echo(f"Database connection error: {e}", err=True)
@@ -218,18 +220,40 @@ class DatabaseManager:
         except Exception:
             return False
     
-    def _create_schema_user(self, schema_name: str) -> bool:
+    def _create_schema_user(self, schema_name: str, user_password: str = None) -> bool:
         """Create a new database user/schema with appropriate privileges."""
         try:
-            with self.get_connection() as conn:
-                with conn.cursor() as cursor:
-                    # Generate a default password for the schema user
-                    schema_password = f"{schema_name.lower()}_pass123"
+            # Use provided password or get from environment
+            if not user_password:
+                user_password = os.getenv('TPCDS_DB_PASSWORD')
+                if not user_password:
+                    user_password = f"{schema_name.lower()}_pass123"
+            
+            console.print(f"📋 Creating database user: {schema_name}", style="cyan")
+            
+            # Use SYSDBA connection for user creation
+            try:
+                # Try to connect as SYSDBA first for user creation
+                connection = oracledb.connect(dsn=self.config.database.dsn, mode=oracledb.AUTH_MODE_SYSDBA)
+                connection.autocommit = True
+                
+                with connection.cursor() as cursor:
+                    # Switch to FREEPDB1
+                    cursor.execute("ALTER SESSION SET CONTAINER = FREEPDB1")
                     
-                    console.print(f"📋 Creating database user: {schema_name}", style="cyan")
+                    # Check if user exists
+                    cursor.execute(
+                        "SELECT COUNT(*) FROM dba_users WHERE username = :username",
+                        {'username': schema_name.upper()}
+                    )
+                    user_count = cursor.fetchone()[0]
                     
-                    # Create the user
-                    cursor.execute(f"CREATE USER {schema_name} IDENTIFIED BY {schema_password}")
+                    if user_count == 0:
+                        # Create the user with secure password handling
+                        cursor.execute(f"CREATE USER {schema_name} IDENTIFIED BY \"{user_password}\"")
+                        console.print(f"✅ User {schema_name} created successfully", style="green")
+                    else:
+                        console.print(f"⚠️  User {schema_name} already exists", style="yellow")
                     
                     # Grant basic privileges
                     privileges = [
@@ -243,14 +267,53 @@ class DatabaseManager:
                     ]
                     
                     for privilege in privileges:
-                        cursor.execute(f"GRANT {privilege} TO {schema_name}")
+                        try:
+                            cursor.execute(f"GRANT {privilege} TO {schema_name}")
+                        except oracledb.Error:
+                            pass  # May already be granted
                     
                     # Grant unlimited tablespace quota
-                    cursor.execute(f"GRANT UNLIMITED TABLESPACE TO {schema_name}")
+                    try:
+                        cursor.execute(f"GRANT UNLIMITED TABLESPACE TO {schema_name}")
+                    except oracledb.Error:
+                        pass  # May already be granted
+                    
+                    console.print(f"✅ Privileges granted to user {schema_name}", style="green")
+                    connection.close()
+                    return True
+                    
+            except oracledb.Error:
+                # Fallback to regular connection if SYSDBA fails
+                console.print("🔄 SYSDBA access not available, trying alternative approach", style="yellow")
+                return self._create_schema_user_fallback(schema_name, user_password)
+                    
+        except Exception as e:
+            console.print(f"❌ Error creating user {schema_name}: {e}", style="red")
+            return False
+    
+    def _create_schema_user_fallback(self, schema_name: str, user_password: str) -> bool:
+        """Fallback method for user creation when SYSDBA is not available."""
+        try:
+            with self.get_connection() as conn:
+                with conn.cursor() as cursor:
+                    console.print(f"📋 Creating database user via fallback method: {schema_name}", style="cyan")
+                    
+                    # Create the user
+                    cursor.execute(f"CREATE USER {schema_name} IDENTIFIED BY \"{user_password}\"")
+                    
+                    # Grant basic privileges
+                    privileges = [
+                        "CREATE SESSION",
+                        "CREATE TABLE", 
+                        "UNLIMITED TABLESPACE"
+                    ]
+                    
+                    for privilege in privileges:
+                        cursor.execute(f"GRANT {privilege} TO {schema_name}")
                     
                     conn.commit()
                     
-                    console.print(f"✅ Created database user {schema_name} with password: {schema_password}", style="green")
+                    console.print(f"✅ Created database user {schema_name}", style="green")
                     console.print(f"💡 Note: User {schema_name} has been granted necessary privileges for TPC-DS operations", style="blue")
                     
                     return True
@@ -295,7 +358,6 @@ class DatabaseManager:
             candidates = [
                 Path("oracle_tpcds_schema.sql"),
                 Path("tpcds.sql"),
-                Path("../TPC-DS_Oracle/tpcds.sql"),
                 Path("scripts/side_files/tpcds.sql")
             ]
             
@@ -469,50 +531,75 @@ class DatabaseManager:
             return False
     
     def get_table_info(self, schema_override: Optional[str] = None) -> List[Dict[str, Any]]:
-        """Get information about TPC-DS tables."""
+        """Get information about TPC-DS tables with actual row counts."""
         schema_name = self._get_schema_name(schema_override)
         
-        if schema_name:
-            # Query specific schema using all_tables
-            query = """
-            SELECT table_name, num_rows, blocks, avg_row_len
-            FROM all_tables 
-            WHERE owner = :schema_name
-            AND table_name IN (
-                'CALL_CENTER', 'CATALOG_PAGE', 'CATALOG_RETURNS', 'CATALOG_SALES',
-                'CUSTOMER', 'CUSTOMER_ADDRESS', 'CUSTOMER_DEMOGRAPHICS', 'DATE_DIM',
-                'HOUSEHOLD_DEMOGRAPHICS', 'INCOME_BAND', 'INVENTORY', 'ITEM',
-                'PROMOTION', 'REASON', 'SHIP_MODE', 'STORE', 'STORE_RETURNS',
-                'STORE_SALES', 'TIME_DIM', 'WAREHOUSE', 'WEB_PAGE', 'WEB_RETURNS',
-                'WEB_SALES', 'WEB_SITE'
-            )
-            ORDER BY table_name
-            """
-        else:
-            # Query current user's schema
-            query = """
-            SELECT table_name, num_rows, blocks, avg_row_len
-            FROM user_tables 
-            WHERE table_name IN (
-                'CALL_CENTER', 'CATALOG_PAGE', 'CATALOG_RETURNS', 'CATALOG_SALES',
-                'CUSTOMER', 'CUSTOMER_ADDRESS', 'CUSTOMER_DEMOGRAPHICS', 'DATE_DIM',
-                'HOUSEHOLD_DEMOGRAPHICS', 'INCOME_BAND', 'INVENTORY', 'ITEM',
-                'PROMOTION', 'REASON', 'SHIP_MODE', 'STORE', 'STORE_RETURNS',
-                'STORE_SALES', 'TIME_DIM', 'WAREHOUSE', 'WEB_PAGE', 'WEB_RETURNS',
-                'WEB_SALES', 'WEB_SITE'
-            )
-            ORDER BY table_name
-            """
+        # List of TPC-DS tables to check
+        tpcds_tables = [
+            'CALL_CENTER', 'CATALOG_PAGE', 'CATALOG_RETURNS', 'CATALOG_SALES',
+            'CUSTOMER', 'CUSTOMER_ADDRESS', 'CUSTOMER_DEMOGRAPHICS', 'DATE_DIM',
+            'HOUSEHOLD_DEMOGRAPHICS', 'INCOME_BAND', 'INVENTORY', 'ITEM',
+            'PROMOTION', 'REASON', 'SHIP_MODE', 'STORE', 'STORE_RETURNS',
+            'STORE_SALES', 'TIME_DIM', 'WAREHOUSE', 'WEB_PAGE', 'WEB_RETURNS',
+            'WEB_SALES', 'WEB_SITE'
+        ]
         
         try:
             with self.get_connection() as conn:
                 with conn.cursor() as cursor:
-                    if schema_name:
-                        cursor.execute(query, {'schema_name': schema_name})
-                    else:
-                        cursor.execute(query)
-                    columns = [desc[0] for desc in cursor.description]
-                    return [dict(zip(columns, row)) for row in cursor.fetchall()]
+                    results = []
+                    
+                    for table in tpcds_tables:
+                        qualified_table = self._qualify_table_name(table, schema_name)
+                        
+                        try:
+                            # Get actual row count using COUNT(*)
+                            cursor.execute(f"SELECT COUNT(*) FROM {qualified_table}")
+                            actual_rows = cursor.fetchone()[0]
+                            
+                            # Get basic table info for blocks and avg_row_len (may be 0 if stats not updated)
+                            if schema_name:
+                                cursor.execute("""
+                                SELECT blocks, avg_row_len 
+                                FROM all_tables 
+                                WHERE owner = :schema_name AND table_name = :table_name
+                                """, {'schema_name': schema_name, 'table_name': table})
+                            else:
+                                cursor.execute("""
+                                SELECT blocks, avg_row_len 
+                                FROM user_tables 
+                                WHERE table_name = :table_name
+                                """, {'table_name': table})
+                            
+                            stats_row = cursor.fetchone()
+                            if stats_row:
+                                blocks, avg_row_len = stats_row
+                            else:
+                                blocks, avg_row_len = 0, 0
+                            
+                            results.append({
+                                'TABLE_NAME': table,
+                                'NUM_ROWS': actual_rows,
+                                'BLOCKS': blocks or 0,
+                                'AVG_ROW_LEN': avg_row_len or 0
+                            })
+                            
+                        except oracledb.Error as e:
+                            if "ORA-00942" in str(e):  # Table doesn't exist
+                                continue  # Skip non-existent tables
+                            else:
+                                # Table exists but other error, include with 0 count
+                                results.append({
+                                    'TABLE_NAME': table,
+                                    'NUM_ROWS': 0,
+                                    'BLOCKS': 0,
+                                    'AVG_ROW_LEN': 0
+                                })
+                    
+                    # Sort results by table name
+                    results.sort(key=lambda x: x['TABLE_NAME'])
+                    return results
+                    
         except Exception as e:
             click.echo(f"Error getting table info: {e}", err=True)
             return []

@@ -43,9 +43,9 @@ dev = [
 tpcds-util = "tpcds_util.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/rhkp/TPC-DS_Oracle"
-Repository = "https://github.com/rhkp/TPC-DS_Oracle"
-Issues = "https://github.com/rhkp/TPC-DS_Oracle/issues"
+Homepage = "https://github.com/rhkp/tpcds-util"
+Repository = "https://github.com/rhkp/tpcds-util"
+Issues = "https://github.com/rhkp/tpcds-util/issues"
 
 [tool.setuptools.packages.find]
 where = ["src"]

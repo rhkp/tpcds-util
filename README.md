@@ -12,9 +12,11 @@ This utility generates realistic synthetic data that complies with the TPC-DS sp
 - **🎯 Multi-Schema Support**: Target specific schemas for all database operations  
 - **⚙️ Easy Configuration**: Simple setup with interactive configuration
 - **🛠️ Database Management**: Create/drop schemas, test connections
-- **📊 Data Loading**: Load data into Oracle with parallel processing
+- **📊 Data Loading**: Load data into Oracle with parallel processing and autocommit protection
 - **🎨 Rich CLI**: Beautiful command-line interface with progress bars and tables
 - **🐳 Container Support**: Full containerization with Podman/Docker support
+- **☸️ Kubernetes Ready**: Enterprise-grade Helm charts with integrated Oracle deployment
+- **🔒 Enterprise Security**: Secure implementation without external dependencies or downloads
 
 ## Quick Start
 
@@ -52,11 +54,35 @@ podman-compose exec tpcds-util tpcds-util schema create
 #### ⚡ External Database (production)
 ```bash
 # Use with existing Oracle infrastructure
-podman run --rm quay.io/tpcds/tpcds-util:latest \
+podman run --rm quay.io/rhkp/tpcds-util:latest \
   config set --host your-db-host
-podman run --rm quay.io/tpcds/tpcds-util:latest \
+podman run --rm quay.io/rhkp/tpcds-util:latest \
   schema create
 ```
+
+### ☸️ Kubernetes/OpenShift Deployment
+Enterprise-ready deployment with integrated Oracle database and secure TPC-DS data loading.
+
+#### 🎯 Integrated Oracle + TPC-DS (Recommended)
+```bash
+# Deploy complete Oracle 23ai + TPC-DS solution
+helm install oracle23ai ./helm --namespace your-namespace
+
+# Monitor data loading progress
+oc logs -f job/oracle23ai-tpcds-populate -n your-namespace
+
+# Verify data loading
+oc exec oracle23ai-0 -n your-namespace -- \
+  sqlplus -s tpcds/password@FREEPDB1 << 'EOF'
+SELECT table_name, COUNT(*) FROM user_tables;
+EOF
+```
+
+**Features:**
+- ✅ **Secure**: No external binary downloads or kubectl dependencies
+- ✅ **Automated**: Full Oracle initialization and TPC-DS user creation
+- ✅ **Integrated**: Oracle 23ai with TPC-DS in single Helm deployment
+- ✅ **Production-Ready**: Enterprise security standards and autocommit protection
 
 ## Generated Data
 
@@ -89,12 +115,28 @@ tpcds-util config set --username myuser --schema-name ""
 - ✅ Work within their own schema by default
 - ⚠️ Require additional privileges for cross-schema operations
 
+## Security & Enterprise Features
+
+### 🔒 Enterprise Security
+- **✅ No External Downloads**: Self-contained solution without runtime dependencies
+- **✅ Secure Credential Handling**: Environment variables and Kubernetes secrets
+- **✅ Transaction Protection**: Autocommit prevents data loss on container termination
+- **✅ Supply Chain Security**: No third-party binary downloads or kubectl dependencies
+- **✅ Container Security**: Minimal attack surface with proper user privileges
+
+### 📋 Compliance
+- **License-Free Data**: All generated data is synthetic and license-free
+- **Apache 2.0 Licensed**: Enterprise-friendly open source license
+- **Oracle Compatibility**: Works with Oracle Free, Standard, and Enterprise editions
+- **Audit-Ready**: Comprehensive logging and verification capabilities
+
 ## Platform Support
 
 - **Linux**: Fully supported (native and containerized)
 - **macOS**: Fully supported (native and containerized)  
 - **Windows**: Supported via WSL or native Python
 - **Containers**: Podman and Docker compatible
+- **Kubernetes**: OpenShift and Kubernetes with Helm charts
 
 ## Quick Help
 

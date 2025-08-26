@@ -117,6 +117,10 @@ class ConfigManager:
             if key in kwargs and kwargs[key] is not None:
                 setattr(config, key, kwargs[key])
         
+        # Handle output_dir -> default_output_dir mapping
+        if 'output_dir' in kwargs and kwargs['output_dir'] is not None:
+            setattr(config, 'default_output_dir', kwargs['output_dir'])
+        
         self.save()
     
     def get_password(self) -> str:
