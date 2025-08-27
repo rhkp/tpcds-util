@@ -38,7 +38,7 @@ jobs:
         python -c "import sys; print('Python version:', sys.version)"
         python -c "import pytest; print('Pytest version:', pytest.__version__)"
         # Use pip installed package approach instead of PYTHONPATH
-        python -m pytest tests/unit/ -v --cov=src/tpcds_util --cov-report=xml --cov-report=term-missing
+        python -m pytest tests/unit/ -v --cov=src/tpcds_util --cov-report=xml --cov-report=term-missing --cov-fail-under=20
     
     - name: Run fast SQLite integration tests
       run: |
