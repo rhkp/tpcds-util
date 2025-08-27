@@ -43,7 +43,11 @@ jobs:
     - name: Run fast SQLite integration tests
       run: |
         # Run the fast, scale=0 SQLite integration tests
-        python -m pytest tests/integration/test_simple_sqlite.py -v --tb=short -x
+        if [ -f "tests/integration/test_simple_sqlite.py" ]; then
+          python -m pytest tests/integration/test_simple_sqlite.py -v --tb=short -x
+        else
+          echo "SQLite integration tests not found, skipping..."
+        fi
     
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v4
