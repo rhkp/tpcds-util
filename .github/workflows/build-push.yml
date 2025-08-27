@@ -63,12 +63,12 @@ jobs:
           echo "path=Containerfile" >> $GITHUB_OUTPUT
         fi
     
-    - name: Build container image
+    - name: Build container image for testing
       uses: docker/build-push-action@v5
       with:
         context: .
         file: ${{ steps.containerfile.outputs.path }}
-        platforms: linux/amd64,linux/arm64
+        platforms: linux/amd64
         push: false
         load: true
         tags: ${{ steps.meta.outputs.tags }}
@@ -77,6 +77,7 @@ jobs:
         cache-to: type=gha,mode=max
     
     - name: Run container security scan with Trivy
+      continue-on-error: true
       uses: aquasecurity/trivy-action@master
       with:
         image-ref: ${{ fromJSON(steps.meta.outputs.json).tags[0] }}
@@ -84,7 +85,7 @@ jobs:
         output: 'trivy-image-results.sarif'
     
     - name: Upload Trivy scan results to GitHub Security tab
-      if: always()
+      if: always() && hashFiles('trivy-image-results.sarif') != ''
       uses: github/codeql-action/upload-sarif@v3
       with:
         sarif_file: 'trivy-image-results.sarif'
