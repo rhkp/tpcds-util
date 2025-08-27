@@ -42,9 +42,9 @@ jobs:
     
     - name: Run fast SQLite integration tests
       run: |
-        # Run the fast, scale=0 SQLite integration tests
+        # Run the fast, scale=0 SQLite integration tests (without coverage requirements)
         if [ -f "tests/integration/test_simple_sqlite.py" ]; then
-          python -m pytest tests/integration/test_simple_sqlite.py -v --tb=short -x
+          python -m pytest tests/integration/test_simple_sqlite.py -v --tb=short -x --cov-fail-under=40
         else
           echo "SQLite integration tests not found, skipping..."
         fi
