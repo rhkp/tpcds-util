@@ -262,3 +262,30 @@ scratch/
 # Python cache and compiled files in nested directories
 */__pycache__/
 */.*cache*/
+
+# Local CI/CD testing artifacts
+.ci-simulation/
+artifacts/
+ci-venv/
+test-venv/
+.act/
+.act-*
+
+# GitHub Actions local runner (act) files
+act-*
+.actrc.local
+.secrets
+.env.local
+
+# Local testing outputs
+synthetic_data/
+test_data/
+coverage_html/
+test-results/
+junit-*.xml
+coverage-*.xml
+
+# Local container images and builds
+*.tar
+docker-build/
+podman-build/

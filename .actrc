@@ -1,0 +1,13 @@
+# act configuration for local testing
+-P ubuntu-latest=catthehacker/ubuntu:act-latest
+-P ubuntu-22.04=catthehacker/ubuntu:act-22.04
+-P ubuntu-20.04=catthehacker/ubuntu:act-20.04
+
+# Use reusable environments to speed up testing
+--reuse
+
+# Set artifact server
+--artifact-server-path ./artifacts
+
+# Bind mount the Docker socket
+--bind
