@@ -52,6 +52,7 @@ echo "::endgroup::"
 echo "::group::Install Dependencies"
 python -m pip install --upgrade pip
 pip install -r requirements.txt
+pip install -e .
 echo "::endgroup::"
 
 echo "::group::Run Unit Tests"
