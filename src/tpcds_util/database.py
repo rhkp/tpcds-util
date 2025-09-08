@@ -950,7 +950,10 @@ class DatabaseManager:
                                         f"🏗️  Copying {table} structure only...",
                                         style="cyan",
                                     )
-                                    sql = f"CREATE TABLE {target_schema.upper()}.{table.upper()} AS SELECT * FROM {source_schema.upper()}.{table.upper()} WHERE 1=0"
+                                    sql = (
+                                        f"CREATE TABLE {target_schema.upper()}.{table.upper()} "
+                                        f"AS SELECT * FROM {source_schema.upper()}.{table.upper()} WHERE 1=0"
+                                    )
                                     cursor.execute(sql)
 
                                 successful_copies += 1
