@@ -14,7 +14,7 @@ services:
     volumes:
       - oracle-data:/opt/oracle/oradata
     healthcheck:
-      test: ["CMD", "sqlplus", "-L", "sys/TestPassword123@localhost:1521/FREE", "as", "sysdba", "<<<", "SELECT 1 FROM DUAL;"]
+      test: ["CMD", "sqlplus", "-L", "sys/${ORACLE_PWD:-TestPassword123}@localhost:1521/FREE", "as", "sysdba", "<<<", "SELECT 1 FROM DUAL;"]
       interval: 30s
       timeout: 10s
       retries: 5

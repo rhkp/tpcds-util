@@ -815,6 +815,150 @@ class DatabaseManager:
             click.echo(f"Error getting table info: {e}", err=True)
             return []
 
+    def create_user(self, username: str, password: str = None, tablespace: str = "UNLIMITED") -> bool:
+        """Create a new Oracle user/schema with appropriate privileges."""
+        try:
+            # Use the existing _create_schema_user method
+            if password is None:
+                password = os.getenv("TPCDS_DB_PASSWORD") or f"{username.lower()}_pass123"
+            
+            return self._create_schema_user(username, password)
+            
+        except Exception as e:
+            console.print(f"❌ Error creating user {username}: {e}", style="red")
+            return False
+
+    def copy_schema(self, source_schema: str, target_schema: str, table_list: List[str] = None, include_data: bool = True) -> bool:
+        """Copy tables from one schema to another.
+        
+        Args:
+            source_schema: Source schema name to copy from
+            target_schema: Target schema name to copy to
+            table_list: Optional list of specific tables to copy (defaults to all TPC-DS tables)
+            include_data: Whether to copy data or just structure (default: True)
+        
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        try:
+            # Default to all TPC-DS sales-related tables if no specific list provided
+            if table_list is None:
+                table_list = [
+                    "CATALOG_SALES",
+                    "STORE_SALES", 
+                    "WEB_SALES",
+                    "CATALOG_RETURNS",
+                    "STORE_RETURNS",
+                    "WEB_RETURNS",
+                    "STORE",
+                    "CALL_CENTER",
+                    "WEB_SITE",
+                    "WEB_PAGE", 
+                    "CATALOG_PAGE",
+                    "CUSTOMER",
+                    "PROMOTION",
+                    "REASON",
+                    "SHIP_MODE"
+                ]
+            
+            console.print(f"📋 Copying {len(table_list)} tables from {source_schema} to {target_schema}", style="cyan")
+            
+            # Ensure target user exists
+            if not self._check_schema_user_exists(target_schema):
+                console.print(f"📋 Target schema {target_schema} doesn't exist, creating...", style="yellow")
+                if not self.create_user(target_schema):
+                    console.print(f"❌ Failed to create target schema {target_schema}", style="red")
+                    return False
+            
+            with self.get_connection() as conn:
+                with conn.cursor() as cursor:
+                    successful_copies = 0
+                    failed_copies = []
+                    
+                    with Progress(
+                        SpinnerColumn(),
+                        TextColumn("[progress.description]{task.description}"),
+                        console=console,
+                    ) as progress:
+                        task = progress.add_task(
+                            f"Copying tables to {target_schema}...", total=len(table_list)
+                        )
+                        
+                        for table in table_list:
+                            try:
+                                source_table = f"{source_schema.upper()}.{table.upper()}"
+                                target_table = f"{target_schema.upper()}.{table.upper()}"
+                                
+                                # Check if source table exists
+                                check_sql = f"SELECT COUNT(*) FROM all_tables WHERE owner = '{source_schema.upper()}' AND table_name = '{table.upper()}'"
+                                cursor.execute(check_sql)
+                                
+                                if cursor.fetchone()[0] == 0:
+                                    console.print(f"⚠️  Source table {source_table} doesn't exist, skipping", style="yellow")
+                                    progress.advance(task)
+                                    continue
+                                
+                                # Drop target table if it exists
+                                try:
+                                    cursor.execute(f"DROP TABLE {target_table} CASCADE CONSTRAINTS")
+                                    console.print(f"🗑️  Dropped existing {target_table}", style="yellow")
+                                except oracledb.Error:
+                                    pass  # Table doesn't exist, which is fine
+                                
+                                if include_data:
+                                    # Copy table structure and data
+                                    console.print(f"📊 Copying {table} with data...", style="cyan")
+                                    sql = f"CREATE TABLE {target_schema.upper()}.{table.upper()} AS SELECT * FROM {source_schema.upper()}.{table.upper()}"
+                                    cursor.execute(sql)
+                                else:
+                                    # Copy table structure only
+                                    console.print(f"🏗️  Copying {table} structure only...", style="cyan")
+                                    sql = f"CREATE TABLE {target_schema.upper()}.{table.upper()} AS SELECT * FROM {source_schema.upper()}.{table.upper()} WHERE 1=0"
+                                    cursor.execute(sql)
+                                
+                                successful_copies += 1
+                                console.print(f"✅ Successfully copied {table}", style="green")
+                                
+                            except oracledb.Error as e:
+                                error_msg = str(e)
+                                if "ORA-01031" in error_msg:
+                                    console.print(f"❌ Insufficient privileges to copy {table}", style="red")
+                                elif "ORA-00942" in error_msg:
+                                    console.print(f"❌ Source table {table} not found", style="red")
+                                else:
+                                    console.print(f"❌ Error copying {table}: {error_msg[:100]}", style="red")
+                                failed_copies.append(table)
+                            
+                            progress.advance(task)
+                        
+                        conn.commit()
+                    
+                    # Report results
+                    console.print(f"📈 Copy Summary:", style="bold blue")
+                    console.print(f"✅ Successfully copied: {successful_copies} tables", style="green")
+                    
+                    if failed_copies:
+                        console.print(f"❌ Failed to copy: {len(failed_copies)} tables", style="red")
+                        console.print(f"   Failed tables: {', '.join(failed_copies)}", style="red")
+                        return False
+                    
+                    # Show verification of copied data
+                    console.print(f"🔍 Verification - Table counts in {target_schema}:", style="cyan")
+                    for table in table_list:
+                        if table not in failed_copies:
+                            try:
+                                cursor.execute(f'SELECT COUNT(*) FROM {target_schema.upper()}.{table.upper()}')
+                                count = cursor.fetchone()[0]
+                                console.print(f"   {table}: {count:,} rows", style="blue")
+                            except oracledb.Error:
+                                pass
+                    
+                    return True
+                    
+        except Exception as e:
+            console.print(f"❌ Error copying schema: {e}", style="red")
+            return False
+
 
 # Global database manager instance
 db_manager = DatabaseManager()

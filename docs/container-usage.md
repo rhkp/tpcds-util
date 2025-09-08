@@ -8,18 +8,27 @@ This guide covers using the TPC-DS utility in containerized environments with Po
 - **Oracle database** (containerized or external)
 - **Network connectivity** between container and database
 
-## Security Note
+## Setup Environment Variables
 
-**⚠️ Never use actual passwords in documentation or scripts!**
+**Before running any commands, set your database password as an environment variable:**
 
-Always use environment variables or secure methods for passwords:
+```bash
+# Set your Oracle database password
+export TPCDS_DB_PASSWORD="<your_secret_password_here>"
+```
+
+### Security Note
+
+**⚠️ Never hardcode passwords in scripts or documentation!**
+
+Examples in this guide use `<your_secret_password_here>` placeholder. Always replace with your actual password:
 
 ```bash
 # ✅ Good - Use environment variables
-export TPCDS_DB_PASSWORD=your_actual_password
+export TPCDS_DB_PASSWORD="MySecureOraclePass123"
 
-# ❌ Bad - Never hardcode passwords
-TPCDS_DB_PASSWORD=actual_password_123
+# ❌ Bad - Never hardcode passwords in commands
+--env="TPCDS_DB_PASSWORD=MySecureOraclePass123"
 ```
 
 ## Container Images
@@ -58,8 +67,8 @@ Perfect for creating a complete isolated environment with both database and util
 
 ```bash
 # Set environment variables
-export TPCDS_DB_PASSWORD=TestPassword123
-export ORACLE_PWD=TestPassword123
+export TPCDS_DB_PASSWORD=<your_secret_password_here>
+export ORACLE_PWD=<your_secret_password_here>
 
 # Start both Oracle DB and tpcds-util containers
 podman-compose up -d
@@ -127,14 +136,14 @@ podman run --rm \
 # For Linux host database
 podman run --rm --network host \
   -v tpcds-config:/home/tpcds/.tpcds-util \
-  -e TPCDS_DB_PASSWORD=your_password \
+  -e TPCDS_DB_PASSWORD=<your_secret_password_here> \
   quay.io/tpcds/tpcds-util:latest \
   config set --host localhost --schema-name CONTAINER_SCHEMA
 
 # For external database
 podman run --rm \
   -v tpcds-config:/home/tpcds/.tpcds-util \
-  -e TPCDS_DB_PASSWORD=your_password \
+  -e TPCDS_DB_PASSWORD=<your_secret_password_here> \
   quay.io/tpcds/tpcds-util:latest \
   config set --host mydb.example.com --schema-name CONTAINER_SCHEMA
 ```
@@ -143,7 +152,7 @@ podman run --rm \
 
 ```bash
 # Set password environment variable first
-export TPCDS_DB_PASSWORD=your_password
+export TPCDS_DB_PASSWORD=<your_secret_password_here>
 
 # Test connection
 podman run --rm \
@@ -207,7 +216,7 @@ podman run --rm \
 
 ```bash
 # Required
-export TPCDS_DB_PASSWORD=your_password
+export TPCDS_DB_PASSWORD=<your_secret_password_here>
 
 # Optional
 export ORACLE_HOME=/opt/oracle/instantclient
@@ -235,7 +244,7 @@ export LD_LIBRARY_PATH=/opt/oracle/instantclient
 # Use host.containers.internal
 podman run --rm \
   -v tpcds-config:/home/tpcds/.tpcds-util \
-  -e TPCDS_DB_PASSWORD=your_password \
+  -e TPCDS_DB_PASSWORD=<your_secret_password_here> \
   quay.io/tpcds/tpcds-util:latest \
   config set --host host.containers.internal
 ```
@@ -246,7 +255,7 @@ podman run --rm \
 # Use host networking
 podman run --rm --network host \
   -v tpcds-config:/home/tpcds/.tpcds-util \
-  -e TPCDS_DB_PASSWORD=your_password \
+  -e TPCDS_DB_PASSWORD=<your_secret_password_here> \
   quay.io/tpcds/tpcds-util:latest \
   config set --host localhost
 ```
@@ -257,7 +266,7 @@ podman run --rm --network host \
 # Use database hostname/IP
 podman run --rm \
   -v tpcds-config:/home/tpcds/.tpcds-util \
-  -e TPCDS_DB_PASSWORD=your_password \
+  -e TPCDS_DB_PASSWORD=<your_secret_password_here> \
   quay.io/tpcds/tpcds-util:latest \
   config set --host mydb.example.com
 ```
@@ -270,7 +279,7 @@ podman run --rm \
 # Test connection
 podman run --rm \
   -v tpcds-config:/home/tpcds/.tpcds-util \
-  -e TPCDS_DB_PASSWORD=your_password \
+  -e TPCDS_DB_PASSWORD=<your_secret_password_here> \
   quay.io/tpcds/tpcds-util:latest \
   db test
 
@@ -283,7 +292,7 @@ podman run --rm \
 # Check database info
 podman run --rm \
   -v tpcds-config:/home/tpcds/.tpcds-util \
-  -e TPCDS_DB_PASSWORD=your_password \
+  -e TPCDS_DB_PASSWORD=<your_secret_password_here> \
   quay.io/tpcds/tpcds-util:latest \
   db info
 ```
@@ -295,14 +304,14 @@ podman run --rm \
 podman run --rm \
   -v .:/workspace \
   -v tpcds-config:/home/tpcds/.tpcds-util \
-  -e TPCDS_DB_PASSWORD=your_password \
+  -e TPCDS_DB_PASSWORD=<your_secret_password_here> \
   quay.io/tpcds/tpcds-util:latest \
   schema create --schema-file /workspace/oracle_tpcds_schema.sql
 
 # Drop schema
 podman run --rm \
   -v tpcds-config:/home/tpcds/.tpcds-util \
-  -e TPCDS_DB_PASSWORD=your_password \
+  -e TPCDS_DB_PASSWORD=<your_secret_password_here> \
   quay.io/tpcds/tpcds-util:latest \
   schema drop --confirm
 ```
@@ -332,7 +341,7 @@ podman run --rm \
 podman run --rm \
   -v ./tpcds_data:/home/tpcds/tpcds_data \
   -v tpcds-config:/home/tpcds/.tpcds-util \
-  -e TPCDS_DB_PASSWORD=your_password \
+  -e TPCDS_DB_PASSWORD=<your_secret_password_here> \
   quay.io/tpcds/tpcds-util:latest \
   load data
 
@@ -340,7 +349,7 @@ podman run --rm \
 podman run --rm \
   -v ./tpcds_data:/home/tpcds/tpcds_data \
   -v tpcds-config:/home/tpcds/.tpcds-util \
-  -e TPCDS_DB_PASSWORD=your_password \
+  -e TPCDS_DB_PASSWORD=<your_secret_password_here> \
   quay.io/tpcds/tpcds-util:latest \
   load data --table customer
 ```
@@ -449,7 +458,7 @@ When using with the Oracle 23ai Helm chart:
 ```bash
 # Deploy Oracle 23ai
 helm install oracle23ai /path/to/oracle23ai/helm \
-  --set secret.password="MySecurePassword123"
+  --set secret.password="<your_secret_password_here>"
 ```
 
 ### 2. Configure TPC-DS for Oracle Service
@@ -458,7 +467,7 @@ helm install oracle23ai /path/to/oracle23ai/helm \
 # Configure for Kubernetes Oracle service
 podman run --rm \
   -v tpcds-config:/home/tpcds/.tpcds-util \
-  -e TPCDS_DB_PASSWORD=MySecurePassword123 \
+  -e TPCDS_DB_PASSWORD="<your_secret_password_here>" \
   quay.io/tpcds/tpcds-util:latest \
   config set \
   --host oracle23ai \
@@ -473,12 +482,12 @@ podman run --rm \
 # Generate and load data for AI workloads
 kubectl run tpcds-setup --rm -it \
   --image=quay.io/tpcds/tpcds-util:latest \
-  --env="TPCDS_DB_PASSWORD=MySecurePassword123" \
+  --env="TPCDS_DB_PASSWORD=<your_secret_password_here>" \
   -- schema create
 
 kubectl run tpcds-load --rm -it \
   --image=quay.io/tpcds/tpcds-util:latest \
-  --env="TPCDS_DB_PASSWORD=MySecurePassword123" \
+  --env="TPCDS_DB_PASSWORD=<your_secret_password_here>" \
   -- load data --scale 10
 ```
 
@@ -576,7 +585,7 @@ podman run --rm \
 
 ```bash
 # Use secrets for passwords
-echo "your_password" | podman secret create db-password -
+echo "<your_secret_password_here>" | podman secret create db-password -
 
 # Use secret in container
 podman run --rm \
