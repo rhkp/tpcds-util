@@ -240,21 +240,27 @@ def user():
 
 @user.command("create")
 @click.argument("username")
-@click.option("--password", help="Password for the new user (will prompt if not provided)")
-@click.option("--tablespace", default="UNLIMITED", help="Tablespace privileges (default: UNLIMITED)")
+@click.option(
+    "--password", help="Password for the new user (will prompt if not provided)"
+)
+@click.option(
+    "--tablespace",
+    default="UNLIMITED",
+    help="Tablespace privileges (default: UNLIMITED)",
+)
 def user_create(username, password, tablespace):
     """Create a new Oracle user/schema.
-    
+
     Creates a new Oracle user with CONNECT, RESOURCE privileges and tablespace access.
     Requires DBA privileges or CREATE USER system privilege.
-    
+
     Examples:
       tpcds-util schema user create sales              # Creates 'sales' user (prompts for password)
       tpcds-util schema user create sales --password mypass123  # Creates with specified password
     """
     if not password:
         password = click.prompt(f"Password for user '{username}'", hide_input=True)
-    
+
     if db_manager.create_user(username, password, tablespace):
         console.print(f"✅ User '{username}' created successfully", style="green")
     else:
@@ -263,15 +269,20 @@ def user_create(username, password, tablespace):
 
 @schema.command("copy")
 @click.argument("source_schema")
-@click.argument("target_schema") 
-@click.option("--tables", help="Comma-separated list of tables to copy (copies all TPC-DS tables if not specified)")
-@click.option("--structure-only", is_flag=True, help="Copy table structure only, no data")
+@click.argument("target_schema")
+@click.option(
+    "--tables",
+    help="Comma-separated list of tables to copy (copies all TPC-DS tables if not specified)",
+)
+@click.option(
+    "--structure-only", is_flag=True, help="Copy table structure only, no data"
+)
 def schema_copy(source_schema, target_schema, tables, structure_only):
     """Copy tables from one schema to another.
-    
+
     Copies TPC-DS tables (or specified tables) from source schema to target schema.
     Target schema/user must already exist.
-    
+
     Examples:
       tpcds-util schema copy SYSTEM sales                    # Copy all TPC-DS tables from SYSTEM to sales
       tpcds-util schema copy SYSTEM sales --tables store_sales,web_sales,catalog_sales  # Copy specific tables
@@ -279,16 +290,22 @@ def schema_copy(source_schema, target_schema, tables, structure_only):
     """
     # By default, copy data unless --structure-only is specified
     include_data = not structure_only
-    
+
     table_list = None
     if tables:
-        table_list = [t.strip() for t in tables.split(',')]
-    
+        table_list = [t.strip() for t in tables.split(",")]
+
     if db_manager.copy_schema(source_schema, target_schema, table_list, include_data):
         action = "structure" if structure_only else "tables and data"
-        console.print(f"✅ Successfully copied {action} from '{source_schema}' to '{target_schema}'", style="green")
+        console.print(
+            f"✅ Successfully copied {action} from '{source_schema}' to '{target_schema}'",
+            style="green",
+        )
     else:
-        console.print(f"❌ Failed to copy from '{source_schema}' to '{target_schema}'", style="red")
+        console.print(
+            f"❌ Failed to copy from '{source_schema}' to '{target_schema}'",
+            style="red",
+        )
 
 
 @cli.group()
