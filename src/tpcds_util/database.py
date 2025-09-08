@@ -851,24 +851,34 @@ class DatabaseManager:
             bool: True if successful, False otherwise
         """
         try:
-            # Default to all TPC-DS sales-related tables if no specific list provided
+            # Default to ALL TPC-DS tables if no specific list provided
             if table_list is None:
                 table_list = [
-                    "CATALOG_SALES",
-                    "STORE_SALES",
-                    "WEB_SALES",
-                    "CATALOG_RETURNS",
-                    "STORE_RETURNS",
-                    "WEB_RETURNS",
+                    "DBGEN_VERSION",
+                    "CUSTOMER_ADDRESS",
+                    "CUSTOMER_DEMOGRAPHICS",
+                    "DATE_DIM",
+                    "WAREHOUSE",
+                    "SHIP_MODE", 
+                    "TIME_DIM",
+                    "REASON",
+                    "INCOME_BAND",
+                    "ITEM",
                     "STORE",
                     "CALL_CENTER",
-                    "WEB_SITE",
-                    "WEB_PAGE",
-                    "CATALOG_PAGE",
                     "CUSTOMER",
+                    "WEB_SITE",
+                    "STORE_RETURNS",
+                    "HOUSEHOLD_DEMOGRAPHICS",
+                    "WEB_PAGE",
                     "PROMOTION",
-                    "REASON",
-                    "SHIP_MODE",
+                    "CATALOG_PAGE",
+                    "INVENTORY",
+                    "CATALOG_RETURNS",
+                    "WEB_RETURNS",
+                    "WEB_SALES",
+                    "CATALOG_SALES",
+                    "STORE_SALES",
                 ]
 
             console.print(
