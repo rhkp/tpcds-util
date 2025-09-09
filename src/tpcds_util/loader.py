@@ -1,17 +1,17 @@
 """Data loading utilities for TPC-DS."""
 
-import subprocess
 import concurrent.futures
+import subprocess
 from pathlib import Path
-from typing import Optional, List, Dict
+from typing import Dict, List, Optional
+
 import click
-from rich.console import Console
-from rich.progress import Progress, BarColumn, TextColumn, TimeRemainingColumn
 import oracledb
+from rich.console import Console
+from rich.progress import BarColumn, Progress, TextColumn, TimeRemainingColumn
 
 from .config import config_manager
 from .database import db_manager
-
 
 console = Console()
 

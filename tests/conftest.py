@@ -1,11 +1,12 @@
 """Pytest configuration and shared fixtures."""
 
-import pytest
 import tempfile
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-from tpcds_util.config import DatabaseConfig, TPCDSConfig, ConfigManager
+import pytest
+
+from tpcds_util.config import ConfigManager, DatabaseConfig, TPCDSConfig
 from tpcds_util.synthetic_generator import DataGenerationConfig
 
 

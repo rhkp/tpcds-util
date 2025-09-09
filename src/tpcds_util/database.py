@@ -1,21 +1,22 @@
 """Database connection and operations for Oracle."""
 
-import oracledb
 import os
 from contextlib import contextmanager
+
+import oracledb
 
 # Force thin mode by clearing Oracle environment variables
 for var in ["ORACLE_HOME", "TNS_ADMIN", "ORACLE_BASE"]:
     if var in os.environ:
         del os.environ[var]
-from typing import Generator, List, Dict, Any, Optional
 from pathlib import Path
+from typing import Any, Dict, Generator, List, Optional
+
 import click
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from .config import config_manager
-
 
 console = Console()
 
@@ -225,7 +226,7 @@ class DatabaseManager:
                                     # Debug: print first few statements
                                     if i < 3:
                                         console.print(
-                                            f"Executing statement {i+1}: {stmt[:100]}...",
+                                            f"Executing statement {i + 1}: {stmt[:100]}...",
                                             style="cyan",
                                         )
                                     cursor.execute(stmt)
@@ -233,7 +234,7 @@ class DatabaseManager:
                                 except oracledb.Error as e:
                                     # Log the error but continue with next statement
                                     console.print(
-                                        f"Error in statement {i+1}: {str(e)[:150]}",
+                                        f"Error in statement {i + 1}: {str(e)[:150]}",
                                         style="red",
                                     )
                                     if i < 3:
@@ -832,6 +833,87 @@ class DatabaseManager:
             console.print(f"❌ Error creating user {username}: {e}", style="red")
             return False
 
+    def restrict_user_privileges(self, username: str) -> bool:
+        """Restrict a user by removing dangerous system privileges.
+
+        Note: Oracle table owners always have full DML privileges on their own tables.
+        This function documents the limitation and removes what privileges it can.
+
+        Args:
+            username: Username/schema to restrict
+
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        try:
+            console.print(
+                f"🔒 Restricting privileges for user {username}...", style="cyan"
+            )
+            console.print(
+                f"⚠️  Oracle limitation: Table owners cannot be made read-only to their own tables",
+                style="yellow",
+            )
+            console.print(
+                f"   For true read-only access, create a separate user with SELECT-only grants",
+                style="yellow",
+            )
+            console.print(
+                f"   Current approach: Revoke system privileges only", style="yellow"
+            )
+
+            with self.get_connection() as conn:
+                with conn.cursor() as cursor:
+                    # List of dangerous privileges to revoke
+                    dangerous_privileges = [
+                        "CREATE TABLE",
+                        "CREATE INDEX",
+                        "CREATE VIEW",
+                        "CREATE PROCEDURE",
+                        "CREATE FUNCTION",
+                        "CREATE PACKAGE",
+                        "CREATE TRIGGER",
+                        "CREATE SEQUENCE",
+                        "CREATE SYNONYM",
+                        "CREATE TYPE",
+                        "CREATE MATERIALIZED VIEW",
+                    ]
+
+                    # Revoke dangerous system privileges
+                    revoked_count = 0
+                    for privilege in dangerous_privileges:
+                        try:
+                            cursor.execute(
+                                f"REVOKE {privilege} FROM {username.upper()}"
+                            )
+                            revoked_count += 1
+                        except oracledb.Error:
+                            # Privilege might not have been granted, continue
+                            pass
+
+                    # Ensure user can still connect
+                    try:
+                        cursor.execute(f"GRANT CREATE SESSION TO {username.upper()}")
+                    except oracledb.Error:
+                        pass  # Might already be granted
+
+                    console.print(
+                        f"✅ Revoked {revoked_count} system privileges from {username}",
+                        style="green",
+                    )
+                    console.print(
+                        f"⚠️  Warning: User can still modify their own tables (Oracle limitation)",
+                        style="yellow",
+                    )
+                    console.print(
+                        f"   For AI/MCP servers, consider using SYSTEM schema with SELECT grants",
+                        style="dim",
+                    )
+                    return True
+
+        except Exception as e:
+            console.print(f"❌ Error modifying user {username}: {e}", style="red")
+            return False
+
     def copy_schema(
         self,
         source_schema: str,
@@ -859,7 +941,7 @@ class DatabaseManager:
                     "CUSTOMER_DEMOGRAPHICS",
                     "DATE_DIM",
                     "WAREHOUSE",
-                    "SHIP_MODE", 
+                    "SHIP_MODE",
                     "TIME_DIM",
                     "REASON",
                     "INCOME_BAND",

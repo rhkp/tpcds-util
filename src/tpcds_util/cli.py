@@ -1,16 +1,16 @@
 """Command Line Interface for TPC-DS utility."""
 
-import click
 from pathlib import Path
+
+import click
+import yaml
 from rich.console import Console
 from rich.table import Table
-import yaml
 
 from .config import config_manager
 from .database import db_manager
 from .generator import DataGenerator
 from .loader import DataLoader
-
 
 console = Console()
 
@@ -265,6 +265,32 @@ def user_create(username, password, tablespace):
         console.print(f"✅ User '{username}' created successfully", style="green")
     else:
         console.print(f"❌ Failed to create user '{username}'", style="red")
+
+
+@user.command("restrict")
+@click.argument("username")
+def user_restrict(username):
+    """Restrict a user by removing dangerous system privileges.
+
+    Removes system privileges like CREATE TABLE, CREATE INDEX, etc. but cannot
+    prevent DML operations (INSERT/UPDATE/DELETE) on tables the user owns.
+    This reduces the damage scope for AI/MCP server usage.
+
+    Note: Oracle table owners always retain full DML access to their own tables.
+
+    Examples:
+      tpcds-util schema user restrict sales    # Remove dangerous privileges from sales user
+    """
+    if db_manager.restrict_user_privileges(username):
+        console.print(f"✅ User '{username}' privileges restricted", style="green")
+        console.print("   Removed dangerous system privileges", style="dim")
+        console.print(
+            "   User can still modify their own tables (Oracle limitation)", style="dim"
+        )
+    else:
+        console.print(
+            f"❌ Failed to restrict user '{username}' privileges", style="red"
+        )
 
 
 @schema.command("copy")

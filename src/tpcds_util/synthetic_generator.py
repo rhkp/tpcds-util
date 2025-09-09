@@ -1,22 +1,22 @@
 """Synthetic data generation for TPC-DS schema with realistic patterns."""
 
 import random
-from datetime import timedelta, date
-from typing import List, Dict, Tuple
-from pathlib import Path
 from dataclasses import dataclass
+from datetime import date, timedelta
+from pathlib import Path
+from typing import Dict, List, Tuple
 
 # Try to import Faker, fall back to basic generation if not available
 try:
     from faker import Faker
-    from faker.providers import automotive, company, internet, address, person
+    from faker.providers import address, automotive, company, internet, person
 
     HAS_FAKER = True
 except ImportError:
     HAS_FAKER = False
 
 from rich.console import Console
-from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn
+from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn
 
 console = Console()
 
